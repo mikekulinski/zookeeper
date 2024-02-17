@@ -1,0 +1,26 @@
+# Default ignored files
+/shelf/
+/workspace.xml
+# Editor-based HTTP Client requests
+/httpRequests/
+# Datasource local storage ignored files
+/dataSources/
+/dataSources.local.xml
+
+.idea
+.fleet
+*.iml
+.gradle
+out/
+bin/
+build/
+gen/
+deps/
+exampleProject
+testData
+.DS_Store
+/pretty_printers_tests/target
+/native-helper/target
+/attributes-info/target
+/modules.xml
+/vcs.xml
