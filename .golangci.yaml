@@ -1,0 +1,18 @@
+run:
+  # Timeout for analysis, e.g. 30s, 5m.
+  # Default: 1m
+  timeout: 5m
+  # Include test files or not.
+  # Default: true
+  tests: true
+linters:
+
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gci
+    - gofmt
