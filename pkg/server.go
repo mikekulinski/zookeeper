@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -49,11 +50,7 @@ type Server struct {
 
 func NewServer() *Server {
 	return &Server{
-		root: &ZNode{
-			name:     "",
-			version:  -1,
-			nodeType: ZNodeType_STANDARD,
-		},
+		root: NewZNode("", -1, ZNodeType_STANDARD, nil),
 	}
 }
 
@@ -64,7 +61,41 @@ func (s *Server) Create(path string, data []byte, flags ...Flag) (string, error)
 	}
 	names := splitPathIntoNodeNames(path)
 
-	return names[len(names)-1], nil
+	// Search down the tree until we hit the parent where we'll be creating this
+	// new node.
+	znode := s.root
+	for _, name := range names[:len(names)-1] {
+		z, ok := znode.children[name]
+		if !ok {
+			return "", fmt.Errorf("parent node [%s] could not be found", name)
+		}
+		znode = z
+	}
+
+	// We are at the parent node of the one we are trying to create. Now let's
+	// try to create it.
+	// TODO: Implement SEQUENTIAL. We'll need to keep track of the last number we used.
+	newName := names[len(names)-1]
+	version := 0
+	if slices.Contains(flags, UNVERSIONED) {
+		version = -1
+	}
+	nodeType := ZNodeType_STANDARD
+	if slices.Contains(flags, EPHEMERAL) {
+		nodeType = ZNodeType_EPHEMERAL
+	}
+	newNode := NewZNode(
+		newName,
+		version,
+		nodeType,
+		data,
+	)
+
+	if _, ok := znode.children[newName]; ok {
+		return "", fmt.Errorf("node [%s] already exists", newName)
+	}
+	znode.children[newName] = newNode
+	return newName, nil
 }
 
 func (s *Server) Delete(path string, version int) {
@@ -115,5 +146,6 @@ func validatePath(path string) error {
 }
 
 func splitPathIntoNodeNames(path string) []string {
+	// Since we have a leading /, then we expect the first name to be empty.
 	return strings.Split(path, "/")[1:]
 }
