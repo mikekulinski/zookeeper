@@ -22,16 +22,15 @@ type Zookeeper interface {
 	// if the znode does not exist.
 	GetData(path string, watch bool) (data []byte, version int)
 	// SetData writes data to the znode path if the version number is the current version of the znode.
-	// TODO: What do we do if the version is invalid?
+	// TODO: What do we do if the version is invalid? Should we return some sort of error message?
 	SetData(path string, data []byte, version int)
 	// GetChildren returns the set of names of the children of a znode.
 	GetChildren(path string, watch bool) []string
 	// Sync waits for all updates pending at the start of the operation to propagate to the server
-	// that the client is connected to. The path is currently ignored.
+	// that the client is connected to. The path is currently ignored. (Using path is not discussed in the white paper)
 	Sync(path string)
 }
 
-// TODO: Split the server implementations to support sync and async.
 type Server struct {
 }
 
