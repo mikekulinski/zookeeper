@@ -22,7 +22,7 @@ func NewZNode(name string, version int, nodeType ZNodeType, data []byte) *ZNode 
 	return &ZNode{
 		name:    name,
 		version: version,
-		// Init to the children to an empty map instead of nil to avoid panics when writing to
+		// Init the children to an empty map instead of nil to avoid panics when writing to
 		// a nil map.
 		children: map[string]*ZNode{},
 		nodeType: nodeType,
