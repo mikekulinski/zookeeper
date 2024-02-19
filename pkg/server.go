@@ -26,10 +26,10 @@ type Zookeeper interface {
 	// Flags can also be passed to pick certain attributes you want the ZNode to have.
 	Create(path string, data []byte, flags ...Flag) (ZNodeName string, _ error)
 	// Delete deletes the ZNode at the given path if that ZNode is at the expected version.
-	Delete(path string, version int)
+	Delete(path string, version int) error
 	// Exists returns true if the ZNode with path name path exists, and returns false otherwise. The watch flag
 	// enables a client to set a watch on the ZNode.
-	Exists(path string, watch bool) bool
+	Exists(path string, watch bool) (bool, error)
 	// GetData returns the data and metadata, such as version information, associated with the ZNode.
 	// The watch flag works in the same way as it does for exists(), except that ZooKeeper does not set the watch
 	// if the ZNode does not exist.
@@ -61,15 +61,10 @@ func (s *Server) Create(path string, data []byte, flags ...Flag) (string, error)
 	}
 	names := splitPathIntoNodeNames(path)
 
-	// Search down the tree until we hit the parent where we'll be creating this
-	// new node.
-	znode := s.root
-	for _, name := range names[:len(names)-1] {
-		z, ok := znode.children[name]
-		if !ok {
-			return "", fmt.Errorf("parent node [%s] could not be found", name)
-		}
-		znode = z
+	// Search down the tree until we hit the parent where we'll be creating this new node.
+	parent := findZNode(s.root, names[:len(names)-1])
+	if parent == nil {
+		return "", fmt.Errorf("at least one of the anscestors of this node are missing")
 	}
 
 	// We are at the parent node of the one we are trying to create. Now let's
@@ -91,19 +86,51 @@ func (s *Server) Create(path string, data []byte, flags ...Flag) (string, error)
 		data,
 	)
 
-	if _, ok := znode.children[newName]; ok {
+	if _, ok := parent.children[newName]; ok {
 		return "", fmt.Errorf("node [%s] already exists", newName)
 	}
-	znode.children[newName] = newNode
+	parent.children[newName] = newNode
 	return newName, nil
 }
 
-func (s *Server) Delete(path string, version int) {
+func (s *Server) Delete(path string, version int) error {
+	err := validatePath(path)
+	if err != nil {
+		return err
+	}
+	names := splitPathIntoNodeNames(path)
 
+	// Search down the tree until we hit the parent where we'll be creating this new node.
+	parent := findZNode(s.root, names[:len(names)-1])
+	if parent == nil {
+		return fmt.Errorf("at least one of the anscestors of this node are missing")
+	}
+
+	nameToDelete := names[len(names)-1]
+	znode, ok := parent.children[nameToDelete]
+	if !ok {
+		// If the node doesn't exist, then act like the operation succeeded.
+		return nil
+	}
+	// TODO: What about if the node is unversioned?
+	if znode.version != version {
+		return fmt.Errorf("invalid version: expected [%d], actual [%d]", version, znode.version)
+	}
+	delete(parent.children, nameToDelete)
+	return nil
 }
 
-func (s *Server) Exists(path string, watch bool) bool {
-	return false
+func (s *Server) Exists(path string, watch bool) (bool, error) {
+	err := validatePath(path)
+	if err != nil {
+		return false, err
+	}
+	names := splitPathIntoNodeNames(path)
+
+	// Search down the tree until we hit the parent where we'll be creating this new node.
+	znode := findZNode(s.root, names[:len(names)-1])
+	// TODO: Implement watching mechanism.
+	return znode != nil, nil
 }
 
 func (s *Server) GetData(path string, watch bool) ([]byte, int) {
@@ -148,4 +175,18 @@ func validatePath(path string) error {
 func splitPathIntoNodeNames(path string) []string {
 	// Since we have a leading /, then we expect the first name to be empty.
 	return strings.Split(path, "/")[1:]
+}
+
+// findZNode will search down to the tree and return the node specified by the names.
+// If the node could not be found, then we will return nil.
+func findZNode(start *ZNode, names []string) *ZNode {
+	znode := start
+	for _, name := range names {
+		z, ok := znode.children[name]
+		if !ok {
+			return nil
+		}
+		znode = z
+	}
+	return znode
 }
