@@ -1,4 +1,4 @@
-package pkg
+package znode
 
 type ZNodeType int
 
@@ -9,23 +9,24 @@ const (
 
 type ZNode struct {
 	// ZNode metadata.
-	name     string
-	version  int
-	children map[string]*ZNode
-	nodeType ZNodeType
+	Name               string
+	Version            int
+	Children           map[string]*ZNode
+	NodeType           ZNodeType
+	NextSequentialNode int
 
-	// data is the data stored here by the client.
-	data []byte
+	// Data is the data stored here by the client.
+	Data []byte
 }
 
 func NewZNode(name string, version int, nodeType ZNodeType, data []byte) *ZNode {
 	return &ZNode{
-		name:    name,
-		version: version,
+		Name:    name,
+		Version: version,
 		// Init the children to an empty map instead of nil to avoid panics when writing to
 		// a nil map.
-		children: map[string]*ZNode{},
-		nodeType: nodeType,
-		data:     data,
+		Children: map[string]*ZNode{},
+		NodeType: nodeType,
+		Data:     data,
 	}
 }
