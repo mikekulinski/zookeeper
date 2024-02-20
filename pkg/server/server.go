@@ -1,9 +1,11 @@
-package pkg
+package server
 
 import (
 	"fmt"
 	"slices"
 	"strings"
+
+	"github.com/mikekulinski/zookeeper/pkg/znode"
 )
 
 type Flag int
@@ -14,11 +16,7 @@ const (
 	EPHEMERAL Flag = iota
 	// SEQUENTIAL indicates that the node to be created should have a monotonically increasing counter appended
 	// to the end of the provided name.
-	// TODO: Should we enforce ZNodes to only have sequential ZNode children if they have any?
 	SEQUENTIAL
-	// UNVERSIONED indicates that a created ZNode doesn't care about versioning. This will eventually
-	// be saved on the ZNode with version == -1.
-	UNVERSIONED
 )
 
 type Zookeeper interface {
@@ -45,12 +43,12 @@ type Zookeeper interface {
 }
 
 type Server struct {
-	root *ZNode
+	root *znode.ZNode
 }
 
 func NewServer() *Server {
 	return &Server{
-		root: NewZNode("", -1, ZNodeType_STANDARD, nil),
+		root: znode.NewZNode("", -1, znode.ZNodeType_STANDARD, nil),
 	}
 }
 
@@ -69,27 +67,27 @@ func (s *Server) Create(path string, data []byte, flags ...Flag) (string, error)
 
 	// We are at the parent node of the one we are trying to create. Now let's
 	// try to create it.
-	// TODO: Implement SEQUENTIAL. We'll need to keep track of the last number we used.
 	newName := names[len(names)-1]
-	version := 0
-	if slices.Contains(flags, UNVERSIONED) {
-		version = -1
+	if slices.Contains(flags, SEQUENTIAL) {
+		newName = fmt.Sprintf("%s_%d", newName, parent.NextSequentialNode)
 	}
-	nodeType := ZNodeType_STANDARD
+	nodeType := znode.ZNodeType_STANDARD
 	if slices.Contains(flags, EPHEMERAL) {
-		nodeType = ZNodeType_EPHEMERAL
+		nodeType = znode.ZNodeType_EPHEMERAL
 	}
-	newNode := NewZNode(
+	newNode := znode.NewZNode(
 		newName,
-		version,
+		0,
 		nodeType,
 		data,
 	)
 
-	if _, ok := parent.children[newName]; ok {
+	if _, ok := parent.Children[newName]; ok {
 		return "", fmt.Errorf("node [%s] already exists", newName)
 	}
-	parent.children[newName] = newNode
+	parent.Children[newName] = newNode
+	// Make sure to increment the counter so the next sequential node will have the next number.
+	parent.NextSequentialNode++
 	return newName, nil
 }
 
@@ -107,16 +105,15 @@ func (s *Server) Delete(path string, version int) error {
 	}
 
 	nameToDelete := names[len(names)-1]
-	znode, ok := parent.children[nameToDelete]
+	node, ok := parent.Children[nameToDelete]
 	if !ok {
 		// If the node doesn't exist, then act like the operation succeeded.
 		return nil
 	}
-	// TODO: What about if the node is unversioned?
-	if znode.version != version {
-		return fmt.Errorf("invalid version: expected [%d], actual [%d]", version, znode.version)
+	if !isValidVersion(version, node.Version) {
+		return fmt.Errorf("invalid version: expected [%d], actual [%d]", version, node.Version)
 	}
-	delete(parent.children, nameToDelete)
+	delete(parent.Children, nameToDelete)
 	return nil
 }
 
@@ -128,9 +125,9 @@ func (s *Server) Exists(path string, watch bool) (bool, error) {
 	names := splitPathIntoNodeNames(path)
 
 	// Search down the tree until we hit the parent where we'll be creating this new node.
-	znode := findZNode(s.root, names[:len(names)-1])
+	node := findZNode(s.root, names[:len(names)-1])
 	// TODO: Implement watching mechanism.
-	return znode != nil, nil
+	return node != nil, nil
 }
 
 func (s *Server) GetData(path string, watch bool) ([]byte, int) {
@@ -149,29 +146,6 @@ func (s *Server) Sync(_ string) {
 
 }
 
-func validatePath(path string) error {
-	if !strings.HasPrefix(path, "/") {
-		return fmt.Errorf("path does not start at the root")
-	}
-
-	if path == "/" {
-		return fmt.Errorf("path cannot be the root")
-	}
-
-	if strings.HasSuffix(path, "/") {
-		return fmt.Errorf("path should end in a node name, a '/'")
-	}
-
-	names := strings.Split(path, "/")
-	// Since we have a leading /, then we expect the first name to be empty.
-	for _, name := range names[1:] {
-		if name == "" {
-			return fmt.Errorf("path contains an empty node name")
-		}
-	}
-	return nil
-}
-
 func splitPathIntoNodeNames(path string) []string {
 	// Since we have a leading /, then we expect the first name to be empty.
 	return strings.Split(path, "/")[1:]
@@ -179,14 +153,14 @@ func splitPathIntoNodeNames(path string) []string {
 
 // findZNode will search down to the tree and return the node specified by the names.
 // If the node could not be found, then we will return nil.
-func findZNode(start *ZNode, names []string) *ZNode {
-	znode := start
+func findZNode(start *znode.ZNode, names []string) *znode.ZNode {
+	node := start
 	for _, name := range names {
-		z, ok := znode.children[name]
+		z, ok := node.Children[name]
 		if !ok {
 			return nil
 		}
-		znode = z
+		node = z
 	}
-	return znode
+	return node
 }
