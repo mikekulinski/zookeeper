@@ -12,9 +12,10 @@ func TestServer_Create(t *testing.T) {
 	const existingNodeName = "existing"
 
 	tests := []struct {
-		name          string
-		path          string
-		errorExpected bool
+		name           string
+		path           string
+		parentNodeType znode.ZNodeType
+		errorExpected  bool
 	}{
 		{
 			name:          "invalid path",
@@ -41,13 +42,19 @@ func TestServer_Create(t *testing.T) {
 			path:          fmt.Sprintf("/%s/new", existingNodeName),
 			errorExpected: false,
 		},
+		{
+			name:           "parent node is ephemeral",
+			path:           fmt.Sprintf("/%s/new", existingNodeName),
+			parentNodeType: znode.ZNodeType_EPHEMERAL,
+			errorExpected:  true,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			zk := NewServer()
 			// Pre-init the server with some nodes so we can also test cases with existing nodes.
 			zk.root.Children = map[string]*znode.ZNode{
-				existingNodeName: znode.NewZNode(existingNodeName, 0, znode.ZNodeType_STANDARD, nil),
+				existingNodeName: znode.NewZNode(existingNodeName, 0, test.parentNodeType, nil),
 			}
 
 			_, err := zk.Create(test.path, nil)
@@ -63,9 +70,10 @@ func TestServer_Create(t *testing.T) {
 func TestServer_Create_Sequential(t *testing.T) {
 	const existingNodeName = "existing_5"
 	tests := []struct {
-		name          string
-		path          string
-		errorExpected bool
+		name           string
+		path           string
+		parentNodeType znode.ZNodeType
+		errorExpected  bool
 	}{
 		{
 			name:          "node already exists",
@@ -82,13 +90,19 @@ func TestServer_Create_Sequential(t *testing.T) {
 			path:          fmt.Sprintf("/%s/new", existingNodeName),
 			errorExpected: false,
 		},
+		{
+			name:           "parent node is ephemeral",
+			path:           fmt.Sprintf("/%s/new", existingNodeName),
+			parentNodeType: znode.ZNodeType_EPHEMERAL,
+			errorExpected:  true,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			zk := NewServer()
 			// Pre-init the server with some nodes so we can also test cases with existing nodes.
 			zk.root.NextSequentialNode = 5
-			existingNode := znode.NewZNode(existingNodeName, 0, znode.ZNodeType_STANDARD, nil)
+			existingNode := znode.NewZNode(existingNodeName, 0, test.parentNodeType, nil)
 			existingNode.NextSequentialNode = 5
 			zk.root.Children = map[string]*znode.ZNode{
 				existingNodeName: existingNode,
