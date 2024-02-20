@@ -64,6 +64,9 @@ func (s *Server) Create(path string, data []byte, flags ...Flag) (string, error)
 	if parent == nil {
 		return "", fmt.Errorf("at least one of the anscestors of this node are missing")
 	}
+	if parent.NodeType == znode.ZNodeType_EPHEMERAL {
+		return "", fmt.Errorf("ephemeral nodes cannot have children")
+	}
 
 	// We are at the parent node of the one we are trying to create. Now let's
 	// try to create it.

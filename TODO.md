@@ -2,8 +2,7 @@
 
 - Initial service implementation on 1 process
   - Basic implementation of file system ZNodes
-    - Build in memory using a trie
-    - Add validation for valid paths and size of ZNodes
+    - Add validation for size of ZNodes
     - Potentially differentiate between files and directories
     - Add versioning (-1 means no version checks)
       - We do need way to choose if you want versioning during create
