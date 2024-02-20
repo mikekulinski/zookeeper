@@ -116,6 +116,9 @@ func (s *Server) Delete(path string, version int) error {
 	if !isValidVersion(version, node.Version) {
 		return fmt.Errorf("invalid version: expected [%d], actual [%d]", version, node.Version)
 	}
+	if len(node.Children) > 0 {
+		return fmt.Errorf("the node specified has children. Only leaf nodes can be deleted")
+	}
 	delete(parent.Children, nameToDelete)
 	return nil
 }
@@ -127,8 +130,7 @@ func (s *Server) Exists(path string, watch bool) (bool, error) {
 	}
 	names := splitPathIntoNodeNames(path)
 
-	// Search down the tree until we hit the parent where we'll be creating this new node.
-	node := findZNode(s.root, names[:len(names)-1])
+	node := findZNode(s.root, names)
 	// TODO: Implement watching mechanism.
 	return node != nil, nil
 }

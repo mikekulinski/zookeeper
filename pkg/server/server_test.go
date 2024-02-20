@@ -125,10 +125,11 @@ func TestServer_Delete(t *testing.T) {
 	const rootChildName = "rootChild"
 	const childChildName = "childChild"
 	tests := []struct {
-		name          string
-		path          string
-		version       int
-		errorExpected bool
+		name            string
+		path            string
+		version         int
+		errorExpected   bool
+		deleteSucceeded bool
 	}{
 		{
 			name:          "invalid path",
@@ -152,22 +153,24 @@ func TestServer_Delete(t *testing.T) {
 			errorExpected: true,
 		},
 		{
-			name:          "valid delete, root",
+			name:          "invalid delete, node has children",
 			path:          "/" + rootChildName,
 			version:       0,
-			errorExpected: false,
+			errorExpected: true,
 		},
 		{
-			name:          "valid delete, child of existing node",
-			path:          fmt.Sprintf("/%s/%s", rootChildName, childChildName),
-			version:       0,
-			errorExpected: false,
+			name:            "valid delete, child of existing node",
+			path:            fmt.Sprintf("/%s/%s", rootChildName, childChildName),
+			version:         0,
+			errorExpected:   false,
+			deleteSucceeded: true,
 		},
 		{
-			name:          "valid delete, ignore version check",
-			path:          "/" + rootChildName,
-			version:       -1,
-			errorExpected: false,
+			name:            "valid delete, ignore version check",
+			path:            fmt.Sprintf("/%s/%s", rootChildName, childChildName),
+			version:         -1,
+			errorExpected:   false,
+			deleteSucceeded: true,
 		},
 	}
 	for _, test := range tests {
@@ -184,6 +187,111 @@ func TestServer_Delete(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
+
+			// If we successfully deleted the leaf node, then verify we don't see it in the trie.
+			if test.deleteSucceeded {
+				assert.Empty(t, zk.root.Children[rootChildName].Children)
+			}
+		})
+	}
+}
+
+func TestServer_Exists_NodeCreated(t *testing.T) {
+	const rootChildName = "rootChild"
+	const childChildName = "childChild"
+	tests := []struct {
+		name          string
+		path          string
+		exists        bool
+		errorExpected bool
+	}{
+		{
+			name:          "invalid path",
+			path:          "invalid",
+			errorExpected: true,
+		},
+		{
+			name:   "node missing",
+			path:   "/random",
+			exists: false,
+		},
+		{
+			name:   "parent node missing",
+			path:   "/x/y/z",
+			exists: false,
+		},
+		{
+			name:   "parent exists, child missing",
+			path:   fmt.Sprintf("/%s/random", rootChildName),
+			exists: false,
+		},
+		{
+			name:   "node exists, root",
+			path:   "/" + rootChildName,
+			exists: true,
+		},
+		{
+			name:   "node exists, child of another node",
+			path:   fmt.Sprintf("/%s/%s", rootChildName, childChildName),
+			exists: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			zk := NewServer()
+			_, err := zk.Create("/"+rootChildName, nil)
+			require.NoError(t, err)
+			_, err = zk.Create(fmt.Sprintf("/%s/%s", rootChildName, childChildName), nil)
+			require.NoError(t, err)
+
+			exists, err := zk.Exists(test.path, false)
+			if test.errorExpected {
+				assert.False(t, exists)
+				assert.Error(t, err)
+			} else {
+				assert.Equal(t, test.exists, exists)
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestServer_Exists_NodeCreatedThenDeleted(t *testing.T) {
+	const rootChildName = "rootChild"
+	const childChildName = "childChild"
+	tests := []struct {
+		name   string
+		path   string
+		exists bool
+	}{
+		{
+			name:   "node was deleted, root",
+			path:   "/" + rootChildName,
+			exists: false,
+		},
+		{
+			name:   "node was deleted, child of another node",
+			path:   fmt.Sprintf("/%s/%s", rootChildName, childChildName),
+			exists: false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			zk := NewServer()
+			// Create nodes to check for.
+			_, err := zk.Create("/"+rootChildName, nil)
+			require.NoError(t, err)
+			_, err = zk.Create(fmt.Sprintf("/%s/%s", rootChildName, childChildName), nil)
+			require.NoError(t, err)
+			// Delete all those nodes to verify we deleted them.
+			err = zk.Delete(fmt.Sprintf("/%s/%s", rootChildName, childChildName), -1)
+			require.NoError(t, err)
+			err = zk.Delete("/"+rootChildName, -1)
+			require.NoError(t, err)
+
+			exists, err := zk.Exists(test.path, false)
+			assert.Equal(t, test.exists, exists)
+			assert.NoError(t, err)
 		})
 	}
 }
