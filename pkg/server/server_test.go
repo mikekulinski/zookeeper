@@ -367,3 +367,84 @@ func TestServer_GetData(t *testing.T) {
 		})
 	}
 }
+
+func TestServer_SetData(t *testing.T) {
+	const rootChildName = "rootChild"
+	const childChildName = "childChild"
+	tests := []struct {
+		name          string
+		path          string
+		version       int
+		errorExpected bool
+		writeSucceeds bool
+	}{
+		{
+			name:          "invalid path",
+			path:          "invalid",
+			errorExpected: true,
+		},
+		{
+			name:          "node missing",
+			path:          "/random",
+			errorExpected: true,
+		},
+		{
+			name:          "parent node missing",
+			path:          "/x/y/z",
+			errorExpected: true,
+		},
+		{
+			name:          "parent exists, child missing",
+			path:          fmt.Sprintf("/%s/random", rootChildName),
+			errorExpected: true,
+		},
+		{
+			name:          "node exists, root",
+			path:          "/" + rootChildName,
+			writeSucceeds: true,
+		},
+		{
+			name:          "node exists, child of another node",
+			path:          fmt.Sprintf("/%s/%s", rootChildName, childChildName),
+			writeSucceeds: true,
+		},
+		{
+			name:          "invalid version",
+			path:          "/" + rootChildName,
+			version:       10,
+			errorExpected: true,
+		},
+		{
+			name:          "ignore version check",
+			path:          "/" + rootChildName,
+			version:       -1,
+			writeSucceeds: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			dataToSet := []byte("you're a wizard Harry")
+
+			zk := NewServer()
+			_, err := zk.Create("/"+rootChildName, nil)
+			require.NoError(t, err)
+			_, err = zk.Create(fmt.Sprintf("/%s/%s", rootChildName, childChildName), nil)
+			require.NoError(t, err)
+
+			err = zk.SetData(test.path, dataToSet, test.version)
+			if test.errorExpected {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			if test.writeSucceeds {
+				data, version, err := zk.GetData(test.path, false)
+				assert.Equal(t, dataToSet, data)
+				// We expect the set to increment the version.
+				assert.Equal(t, 1, version)
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
