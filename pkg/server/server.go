@@ -34,7 +34,7 @@ type Zookeeper interface {
 	GetData(path string, watch bool) (data []byte, version int, err error)
 	// SetData writes data to the ZNode path if the version number is the current version of the ZNode.
 	// TODO: What do we do if the version is invalid? Should we return some sort of error message?
-	SetData(path string, data []byte, version int)
+	SetData(path string, data []byte, version int) error
 	// GetChildren returns the set of names of the children of a ZNode.
 	GetChildren(path string, watch bool) (childrenNames []string)
 	// Sync waits for all updates pending at the start of the operation to propagate to the server
@@ -151,8 +151,23 @@ func (s *Server) GetData(path string, watch bool) ([]byte, int, error) {
 	return node.Data, node.Version, nil
 }
 
-func (s *Server) SetData(path string, data []byte, version int) {
+func (s *Server) SetData(path string, data []byte, version int) error {
+	err := validatePath(path)
+	if err != nil {
+		return err
+	}
+	names := splitPathIntoNodeNames(path)
 
+	node := findZNode(s.root, names)
+	if node == nil {
+		return fmt.Errorf("node does not exist")
+	}
+	if !isValidVersion(version, node.Version) {
+		return fmt.Errorf("invalid version: expected [%d], actual [%d]", version, node.Version)
+	}
+	node.Data = data
+	node.Version++
+	return nil
 }
 
 func (s *Server) GetChildren(path string, watch bool) []string {
