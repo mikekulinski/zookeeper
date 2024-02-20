@@ -20,23 +20,23 @@ const (
 )
 
 type Zookeeper interface {
-	// Create creates a ZNode with path name path, stores data[] in it, and returns the name of the new ZNode
+	// Create creates a ZNode with path name path, stores data in it, and returns the name of the new ZNode
 	// Flags can also be passed to pick certain attributes you want the ZNode to have.
-	Create(path string, data []byte, flags ...Flag) (ZNodeName string, _ error)
+	Create(path string, data []byte, flags ...Flag) (ZNodeName string, err error)
 	// Delete deletes the ZNode at the given path if that ZNode is at the expected version.
 	Delete(path string, version int) error
 	// Exists returns true if the ZNode with path name path exists, and returns false otherwise. The watch flag
 	// enables a client to set a watch on the ZNode.
-	Exists(path string, watch bool) (bool, error)
+	Exists(path string, watch bool) (exists bool, err error)
 	// GetData returns the data and metadata, such as version information, associated with the ZNode.
 	// The watch flag works in the same way as it does for exists(), except that ZooKeeper does not set the watch
 	// if the ZNode does not exist.
-	GetData(path string, watch bool) (data []byte, version int)
+	GetData(path string, watch bool) (data []byte, version int, err error)
 	// SetData writes data to the ZNode path if the version number is the current version of the ZNode.
 	// TODO: What do we do if the version is invalid? Should we return some sort of error message?
 	SetData(path string, data []byte, version int)
 	// GetChildren returns the set of names of the children of a ZNode.
-	GetChildren(path string, watch bool) []string
+	GetChildren(path string, watch bool) (childrenNames []string)
 	// Sync waits for all updates pending at the start of the operation to propagate to the server
 	// that the client is connected to. The path is currently ignored. (Using path is not discussed in the white paper)
 	Sync(path string)
@@ -86,7 +86,7 @@ func (s *Server) Create(path string, data []byte, flags ...Flag) (string, error)
 	)
 
 	if _, ok := parent.Children[newName]; ok {
-		return "", fmt.Errorf("node [%s] already exists", newName)
+		return "", fmt.Errorf("node [%s] already exists at path [%s]", newName, path)
 	}
 	parent.Children[newName] = newNode
 	// Make sure to increment the counter so the next sequential node will have the next number.
@@ -135,8 +135,20 @@ func (s *Server) Exists(path string, watch bool) (bool, error) {
 	return node != nil, nil
 }
 
-func (s *Server) GetData(path string, watch bool) ([]byte, int) {
-	return nil, 0
+func (s *Server) GetData(path string, watch bool) ([]byte, int, error) {
+	err := validatePath(path)
+	if err != nil {
+		return nil, 0, err
+	}
+	names := splitPathIntoNodeNames(path)
+
+	node := findZNode(s.root, names)
+	if node == nil {
+		// TODO: Should we return an error if the node doesn't exist?
+		return nil, 0, nil
+	}
+	// TODO: Implement watching mechanism.
+	return node.Data, node.Version, nil
 }
 
 func (s *Server) SetData(path string, data []byte, version int) {

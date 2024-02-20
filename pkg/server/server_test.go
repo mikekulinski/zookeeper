@@ -295,3 +295,75 @@ func TestServer_Exists_NodeCreatedThenDeleted(t *testing.T) {
 		})
 	}
 }
+
+func TestServer_GetData(t *testing.T) {
+	const rootChildName = "rootChild"
+	const childChildName = "childChild"
+	tests := []struct {
+		name          string
+		path          string
+		data          []byte
+		version       int
+		errorExpected bool
+	}{
+		{
+			name:          "invalid path",
+			path:          "invalid",
+			errorExpected: true,
+		},
+		{
+			name:    "node missing",
+			path:    "/random",
+			data:    nil,
+			version: 0,
+		},
+		{
+			name:    "parent node missing",
+			path:    "/x/y/z",
+			data:    nil,
+			version: 0,
+		},
+		{
+			name:    "parent exists, child missing",
+			path:    fmt.Sprintf("/%s/random", rootChildName),
+			data:    nil,
+			version: 0,
+		},
+		{
+			name: "node exists, root",
+			path: "/" + rootChildName,
+			data: []byte("secret stuff"),
+		},
+		{
+			name: "node exists, child of another node",
+			path: fmt.Sprintf("/%s/%s", rootChildName, childChildName),
+			data: []byte("secret stuff"),
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			zk := NewServer()
+			_, err := zk.Create("/"+rootChildName, test.data)
+			require.NoError(t, err)
+			_, err = zk.Create(fmt.Sprintf("/%s/%s", rootChildName, childChildName), test.data)
+			require.NoError(t, err)
+
+			// Set the versions on the nodes so we can differentiate between missing nodes and nodes that exists but
+			// have no data.
+			rootChild := zk.root.Children[rootChildName]
+			rootChild.Version = test.version
+			rootChild.Children[childChildName].Version = test.version
+
+			data, version, err := zk.GetData(test.path, false)
+			if test.errorExpected {
+				assert.Empty(t, data)
+				assert.Zero(t, version)
+				assert.Error(t, err)
+			} else {
+				assert.Equal(t, test.data, data)
+				assert.Empty(t, test.version, version)
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
