@@ -3,9 +3,6 @@
 - Initial service implementation on 1 process
   - Basic implementation of file system ZNodes
     - Add validation for size of ZNodes
-    - Potentially differentiate between files and directories
-    - Add versioning (-1 means no version checks)
-      - We do need way to choose if you want versioning during create
   - Add the concept of sessions
     - To prevent the session from timing out, the ZooKeeper client library sends a heartbeat
       after the session has been idle for s/3 ms and switch to a
