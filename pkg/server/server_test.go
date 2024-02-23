@@ -411,14 +411,18 @@ func TestServer_GetData(t *testing.T) {
 			rootChild.Version = test.version
 			rootChild.Children[childChildName].Version = test.version
 
-			data, version, err := zk.GetData(test.path, false)
+			gReq := &GetDataReq{
+				Path: test.path,
+			}
+			gResp := &GetDataResp{}
+			err = zk.GetData(gReq, gResp)
 			if test.errorExpected {
-				assert.Empty(t, data)
-				assert.Zero(t, version)
+				assert.Empty(t, gResp.Data)
+				assert.Zero(t, gResp.Version)
 				assert.Error(t, err)
 			} else {
-				assert.Equal(t, test.data, data)
-				assert.Empty(t, test.version, version)
+				assert.Equal(t, test.data, gResp.Data)
+				assert.Empty(t, test.version, gResp.Version)
 				assert.NoError(t, err)
 			}
 		})
@@ -502,10 +506,14 @@ func TestServer_SetData(t *testing.T) {
 			}
 
 			if test.writeSucceeds {
-				data, version, err := zk.GetData(test.path, false)
-				assert.Equal(t, dataToSet, data)
+				gReq := &GetDataReq{
+					Path: test.path,
+				}
+				gResp := &GetDataResp{}
+				err := zk.GetData(gReq, gResp)
+				assert.Equal(t, dataToSet, gResp.Data)
 				// We expect the set to increment the version.
-				assert.Equal(t, 1, version)
+				assert.Equal(t, 1, gResp.Version)
 				assert.NoError(t, err)
 			}
 		})

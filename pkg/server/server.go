@@ -20,7 +20,7 @@ type Zookeeper interface {
 	// GetData returns the data and metadata, such as version information, associated with the ZNode.
 	// The watch flag works in the same way as it does for exists(), except that ZooKeeper does not set the watch
 	// if the ZNode does not exist.
-	GetData(path string, watch bool) (data []byte, version int, err error)
+	GetData(req *GetDataReq, resp *GetDataResp) error
 	// SetData writes data to the ZNode path if the version number is the current version of the ZNode.
 	// TODO: What do we do if the version is invalid? Should we return some sort of error message?
 	SetData(path string, data []byte, version int) error
@@ -129,20 +129,23 @@ func (s *Server) Exists(req *ExistsReq, resp *ExistsResp) error {
 	return nil
 }
 
-func (s *Server) GetData(path string, watch bool) ([]byte, int, error) {
-	err := validatePath(path)
+func (s *Server) GetData(req *GetDataReq, resp *GetDataResp) error {
+	err := validatePath(req.Path)
 	if err != nil {
-		return nil, 0, err
+		return err
 	}
-	names := splitPathIntoNodeNames(path)
+	names := splitPathIntoNodeNames(req.Path)
 
 	node := findZNode(s.root, names)
 	if node == nil {
 		// TODO: Should we return an error if the node doesn't exist?
-		return nil, 0, nil
+		return nil
 	}
 	// TODO: Implement watching mechanism.
-	return node.Data, node.Version, nil
+	// Set the fields in the response and return.
+	resp.Data = node.Data
+	resp.Version = node.Version
+	return nil
 }
 
 func (s *Server) SetData(path string, data []byte, version int) error {
