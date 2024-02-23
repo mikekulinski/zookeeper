@@ -28,7 +28,7 @@ type Zookeeper interface {
 	GetChildren(req *GetChildrenReq, resp *GetChildrenResp) error
 	// Sync waits for all updates pending at the start of the operation to propagate to the server
 	// that the client is connected to. The path is currently ignored. (Using path is not discussed in the white paper)
-	Sync(path string)
+	Sync(req *SyncReq, resp *SyncResp) error
 }
 
 type Server struct {
@@ -190,8 +190,8 @@ func (s *Server) GetChildren(req *GetChildrenReq, resp *GetChildrenResp) error {
 	return nil
 }
 
-func (s *Server) Sync(_ string) {
-
+func (s *Server) Sync(_ *SyncReq, _ *SyncResp) error {
+	return fmt.Errorf("not implemented")
 }
 
 func splitPathIntoNodeNames(path string) []string {
