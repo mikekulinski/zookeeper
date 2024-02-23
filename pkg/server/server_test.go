@@ -269,12 +269,16 @@ func TestServer_Exists_NodeCreated(t *testing.T) {
 			err = zk.Create(req, &CreateResp{})
 			require.NoError(t, err)
 
-			exists, err := zk.Exists(test.path, false)
+			eReq := &ExistsReq{
+				Path: test.path,
+			}
+			eResp := &ExistsResp{}
+			err = zk.Exists(eReq, eResp)
 			if test.errorExpected {
-				assert.False(t, exists)
+				assert.False(t, eResp.Exists)
 				assert.Error(t, err)
 			} else {
-				assert.Equal(t, test.exists, exists)
+				assert.Equal(t, test.exists, eResp.Exists)
 				assert.NoError(t, err)
 			}
 		})
@@ -329,8 +333,12 @@ func TestServer_Exists_NodeCreatedThenDeleted(t *testing.T) {
 			err = zk.Delete(dReq, &DeleteResp{})
 			require.NoError(t, err)
 
-			exists, err := zk.Exists(test.path, false)
-			assert.Equal(t, test.exists, exists)
+			eReq := &ExistsReq{
+				Path: test.path,
+			}
+			eResp := &ExistsResp{}
+			err = zk.Exists(eReq, eResp)
+			assert.Equal(t, test.exists, eResp.Exists)
 			assert.NoError(t, err)
 		})
 	}

@@ -16,7 +16,7 @@ type Zookeeper interface {
 	Delete(req *DeleteReq, resp *DeleteResp) error
 	// Exists returns true if the ZNode with path name path exists, and returns false otherwise. The watch flag
 	// enables a client to set a watch on the ZNode.
-	Exists(path string, watch bool) (exists bool, err error)
+	Exists(req *ExistsReq, resp *ExistsResp) error
 	// GetData returns the data and metadata, such as version information, associated with the ZNode.
 	// The watch flag works in the same way as it does for exists(), except that ZooKeeper does not set the watch
 	// if the ZNode does not exist.
@@ -115,16 +115,18 @@ func (s *Server) Delete(req *DeleteReq, _ *DeleteResp) error {
 	return nil
 }
 
-func (s *Server) Exists(path string, watch bool) (bool, error) {
-	err := validatePath(path)
+func (s *Server) Exists(req *ExistsReq, resp *ExistsResp) error {
+	err := validatePath(req.Path)
 	if err != nil {
-		return false, err
+		return err
 	}
-	names := splitPathIntoNodeNames(path)
+	names := splitPathIntoNodeNames(req.Path)
 
 	node := findZNode(s.root, names)
 	// TODO: Implement watching mechanism.
-	return node != nil, nil
+	// Set the response and return.
+	resp.Exists = node != nil
+	return nil
 }
 
 func (s *Server) GetData(path string, watch bool) ([]byte, int, error) {
