@@ -1,11 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"net/rpc"
 
-	"github.com/mikekulinski/zookeeper/pkg/zookeeper"
+	zkc "github.com/mikekulinski/zookeeper/pkg/client"
 )
 
 const (
@@ -13,21 +11,14 @@ const (
 )
 
 func main() {
-	client, err := rpc.DialHTTP("tcp", serverAddress+":8080")
+	client, err := zkc.NewClient(serverAddress)
 	if err != nil {
 		log.Fatal("dialing:", err)
 	}
-
-	// Synchronous call
-	req := &zookeeper.CreateReq{
-		Path:  "/x/p",
-		Data:  []byte("Hello World!"),
-		Flags: []zookeeper.Flag{zookeeper.SEQUENTIAL},
-	}
-	reply := &zookeeper.CreateResp{}
-	err = client.Call("Server.Create", req, reply)
-	if err != nil {
-		log.Fatal("server error:", err)
-	}
-	fmt.Println(reply.ZNodeName)
+	defer func() {
+		err := client.Close()
+		if err != nil {
+			log.Fatal("error closing client:", err)
+		}
+	}()
 }

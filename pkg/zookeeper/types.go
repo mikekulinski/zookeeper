@@ -70,3 +70,18 @@ type SyncReq struct {
 }
 
 type SyncResp struct{}
+
+/*
+Server/Client connections
+*/
+type ConnectReq struct {
+	ClientID string
+}
+
+type ConnectResp struct{}
+
+type CloseReq struct {
+	ClientID string
+}
+
+type CloseResp struct{}

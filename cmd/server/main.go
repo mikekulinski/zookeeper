@@ -9,9 +9,13 @@ import (
 	"github.com/mikekulinski/zookeeper/pkg/server"
 )
 
+const (
+	serverName = "Zookeeper"
+)
+
 func main() {
 	zk := server.NewServer()
-	err := rpc.Register(zk)
+	err := rpc.RegisterName(serverName, zk)
 	if err != nil {
 		log.Fatal("register error:", err)
 	}

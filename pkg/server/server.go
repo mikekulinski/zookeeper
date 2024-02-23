@@ -5,12 +5,16 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/mikekulinski/zookeeper/pkg/session"
 	"github.com/mikekulinski/zookeeper/pkg/znode"
 	"github.com/mikekulinski/zookeeper/pkg/zookeeper"
 )
 
 type Server struct {
 	root *znode.ZNode
+	// Sessions is a map of ClientID to session for all the clients
+	// that are currently connected to Zookeeper.
+	sessions map[string]*session.Session
 }
 
 func NewServer() *Server {
