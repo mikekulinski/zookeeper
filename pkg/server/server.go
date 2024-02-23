@@ -13,7 +13,7 @@ type Zookeeper interface {
 	// Flags can also be passed to pick certain attributes you want the ZNode to have.
 	Create(req *CreateReq, resp *CreateResp) error
 	// Delete deletes the ZNode at the given path if that ZNode is at the expected version.
-	Delete(path string, version int) error
+	Delete(req *DeleteReq, resp *DeleteResp) error
 	// Exists returns true if the ZNode with path name path exists, and returns false otherwise. The watch flag
 	// enables a client to set a watch on the ZNode.
 	Exists(path string, watch bool) (exists bool, err error)
@@ -85,12 +85,12 @@ func (s *Server) Create(req *CreateReq, resp *CreateResp) error {
 	return nil
 }
 
-func (s *Server) Delete(path string, version int) error {
-	err := validatePath(path)
+func (s *Server) Delete(req *DeleteReq, _ *DeleteResp) error {
+	err := validatePath(req.Path)
 	if err != nil {
 		return err
 	}
-	names := splitPathIntoNodeNames(path)
+	names := splitPathIntoNodeNames(req.Path)
 
 	// Search down the tree until we hit the parent where we'll be creating this new node.
 	parent := findZNode(s.root, names[:len(names)-1])
@@ -104,13 +104,14 @@ func (s *Server) Delete(path string, version int) error {
 		// If the node doesn't exist, then act like the operation succeeded.
 		return nil
 	}
-	if !isValidVersion(version, node.Version) {
-		return fmt.Errorf("invalid version: expected [%d], actual [%d]", version, node.Version)
+	if !isValidVersion(req.Version, node.Version) {
+		return fmt.Errorf("invalid version: expected [%d], actual [%d]", req.Version, node.Version)
 	}
 	if len(node.Children) > 0 {
 		return fmt.Errorf("the node specified has children. Only leaf nodes can be deleted")
 	}
 	delete(parent.Children, nameToDelete)
+
 	return nil
 }
 

@@ -185,18 +185,22 @@ func TestServer_Delete(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			zk := NewServer()
-			req := &CreateReq{
+			cReq := &CreateReq{
 				Path: "/" + rootChildName,
 			}
-			err := zk.Create(req, &CreateResp{})
+			err := zk.Create(cReq, &CreateResp{})
 			require.NoError(t, err)
-			req = &CreateReq{
+			cReq = &CreateReq{
 				Path: fmt.Sprintf("/%s/%s", rootChildName, childChildName),
 			}
-			err = zk.Create(req, &CreateResp{})
+			err = zk.Create(cReq, &CreateResp{})
 			require.NoError(t, err)
 
-			err = zk.Delete(test.path, test.version)
+			dReq := &DeleteReq{
+				Path:    test.path,
+				Version: test.version,
+			}
+			err = zk.Delete(dReq, &DeleteResp{})
 			if test.errorExpected {
 				assert.Error(t, err)
 			} else {
@@ -300,20 +304,29 @@ func TestServer_Exists_NodeCreatedThenDeleted(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			zk := NewServer()
 			// Create nodes to check for.
-			req := &CreateReq{
+			cReq := &CreateReq{
 				Path: "/" + rootChildName,
 			}
-			err := zk.Create(req, &CreateResp{})
+			err := zk.Create(cReq, &CreateResp{})
 			require.NoError(t, err)
-			req = &CreateReq{
+			cReq = &CreateReq{
 				Path: fmt.Sprintf("/%s/%s", rootChildName, childChildName),
 			}
-			err = zk.Create(req, &CreateResp{})
+			err = zk.Create(cReq, &CreateResp{})
 			require.NoError(t, err)
+
 			// Delete all those nodes to verify we deleted them.
-			err = zk.Delete(fmt.Sprintf("/%s/%s", rootChildName, childChildName), -1)
+			dReq := &DeleteReq{
+				Path:    fmt.Sprintf("/%s/%s", rootChildName, childChildName),
+				Version: -1,
+			}
+			err = zk.Delete(dReq, &DeleteResp{})
 			require.NoError(t, err)
-			err = zk.Delete("/"+rootChildName, -1)
+			dReq = &DeleteReq{
+				Path:    "/" + rootChildName,
+				Version: -1,
+			}
+			err = zk.Delete(dReq, &DeleteResp{})
 			require.NoError(t, err)
 
 			exists, err := zk.Exists(test.path, false)
