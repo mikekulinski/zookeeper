@@ -498,7 +498,13 @@ func TestServer_SetData(t *testing.T) {
 			err = zk.Create(req, &CreateResp{})
 			require.NoError(t, err)
 
-			err = zk.SetData(test.path, dataToSet, test.version)
+			sReq := &SetDataReq{
+				Path:    test.path,
+				Data:    dataToSet,
+				Version: test.version,
+			}
+			sResp := &SetDataResp{}
+			err = zk.SetData(sReq, sResp)
 			if test.errorExpected {
 				assert.Error(t, err)
 			} else {
