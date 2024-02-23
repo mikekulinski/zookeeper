@@ -9,7 +9,6 @@
       new server if it has not heard from a server for 2s/3 ms,
       where s is the session timeout in milliseconds.
   - Implement ephemeral ZNodes (can't have children)
-  - Set up a way to run integration tests
 - Add an async version of the server
   - Maybe just have an async client that calls each method in a goroutine?
   - For FIFO client order we can use channels to implement this. And use blocking vs non-blocking channels for implementing sync / async
@@ -22,5 +21,4 @@
   - Use two-phase commit for replication
   - Implement atomic broadcast (ZAB)
 - Split Zookeeper into a multiple processes
-  - Update Zookeeper executables to be a separate client/server
-  - Expose via localhost over RPC / HTTP
+  - Set up a way to run integration tests
