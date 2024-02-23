@@ -586,12 +586,16 @@ func TestServer_GetChildren(t *testing.T) {
 			rootChild.Version = 5
 			rootChild.Children[childChildName].Version = 5
 
-			children, err := zk.GetChildren(test.path, false)
+			cReq := &GetChildrenReq{
+				Path: test.path,
+			}
+			cResp := &GetChildrenResp{}
+			err = zk.GetChildren(cReq, cResp)
 			if test.errorExpected {
-				assert.Empty(t, children)
+				assert.Empty(t, cResp.Children)
 				assert.Error(t, err)
 			} else {
-				assert.Equal(t, test.children, children)
+				assert.Equal(t, test.children, cResp.Children)
 				assert.NoError(t, err)
 			}
 		})

@@ -62,7 +62,7 @@ type GetChildrenReq struct {
 }
 
 type GetChildrenResp struct {
-	ChildrenNames []string
+	Children []string
 }
 
 type SyncReq struct {

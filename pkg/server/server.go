@@ -25,7 +25,7 @@ type Zookeeper interface {
 	// TODO: What do we do if the version is invalid? Should we return some sort of error message?
 	SetData(req *SetDataReq, resp *SetDataResp) error
 	// GetChildren returns the set of names of the children of a ZNode.
-	GetChildren(path string, watch bool) (childrenNames []string, err error)
+	GetChildren(req *GetChildrenReq, resp *GetChildrenResp) error
 	// Sync waits for all updates pending at the start of the operation to propagate to the server
 	// that the client is connected to. The path is currently ignored. (Using path is not discussed in the white paper)
 	Sync(path string)
@@ -167,16 +167,16 @@ func (s *Server) SetData(req *SetDataReq, _ *SetDataResp) error {
 	return nil
 }
 
-func (s *Server) GetChildren(path string, watch bool) ([]string, error) {
-	err := validatePath(path)
+func (s *Server) GetChildren(req *GetChildrenReq, resp *GetChildrenResp) error {
+	err := validatePath(req.Path)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	names := splitPathIntoNodeNames(path)
+	names := splitPathIntoNodeNames(req.Path)
 
 	node := findZNode(s.root, names)
 	if node == nil {
-		return nil, nil
+		return nil
 	}
 
 	// Just get the names of the children from the map.
@@ -185,7 +185,9 @@ func (s *Server) GetChildren(path string, watch bool) ([]string, error) {
 		childrenNames = append(childrenNames, name)
 	}
 	// TODO: Implement watching mechanism.
-	return childrenNames, nil
+	// Set the fields in the response and return.
+	resp.Children = childrenNames
+	return nil
 }
 
 func (s *Server) Sync(_ string) {
