@@ -1,4 +1,4 @@
-package server
+package zookeeper
 
 // TODO: Add comments for this whole file.
 type Flag int

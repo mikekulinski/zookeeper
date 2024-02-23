@@ -6,30 +6,8 @@ import (
 	"strings"
 
 	"github.com/mikekulinski/zookeeper/pkg/znode"
+	"github.com/mikekulinski/zookeeper/pkg/zookeeper"
 )
-
-type Zookeeper interface {
-	// Create creates a ZNode with path name path, stores data in it, and returns the name of the new ZNode
-	// Flags can also be passed to pick certain attributes you want the ZNode to have.
-	Create(req *CreateReq, resp *CreateResp) error
-	// Delete deletes the ZNode at the given path if that ZNode is at the expected version.
-	Delete(req *DeleteReq, resp *DeleteResp) error
-	// Exists returns true if the ZNode with path name path exists, and returns false otherwise. The watch flag
-	// enables a client to set a watch on the ZNode.
-	Exists(req *ExistsReq, resp *ExistsResp) error
-	// GetData returns the data and metadata, such as version information, associated with the ZNode.
-	// The watch flag works in the same way as it does for exists(), except that ZooKeeper does not set the watch
-	// if the ZNode does not exist.
-	GetData(req *GetDataReq, resp *GetDataResp) error
-	// SetData writes data to the ZNode path if the version number is the current version of the ZNode.
-	// TODO: What do we do if the version is invalid? Should we return some sort of error message?
-	SetData(req *SetDataReq, resp *SetDataResp) error
-	// GetChildren returns the set of names of the children of a ZNode.
-	GetChildren(req *GetChildrenReq, resp *GetChildrenResp) error
-	// Sync waits for all updates pending at the start of the operation to propagate to the server
-	// that the client is connected to. The path is currently ignored. (Using path is not discussed in the white paper)
-	Sync(req *SyncReq, resp *SyncResp) error
-}
 
 type Server struct {
 	root *znode.ZNode
@@ -41,7 +19,9 @@ func NewServer() *Server {
 	}
 }
 
-func (s *Server) Create(req *CreateReq, resp *CreateResp) error {
+// Create creates a ZNode with path name path, stores data in it, and returns the name of the new ZNode
+// Flags can also be passed to pick certain attributes you want the ZNode to have.
+func (s *Server) Create(req *zookeeper.CreateReq, resp *zookeeper.CreateResp) error {
 	err := validatePath(req.Path)
 	if err != nil {
 		return err
@@ -60,11 +40,11 @@ func (s *Server) Create(req *CreateReq, resp *CreateResp) error {
 	// We are at the parent node of the one we are trying to create. Now let's
 	// try to create it.
 	newName := names[len(names)-1]
-	if slices.Contains(req.Flags, SEQUENTIAL) {
+	if slices.Contains(req.Flags, zookeeper.SEQUENTIAL) {
 		newName = fmt.Sprintf("%s_%d", newName, parent.NextSequentialNode)
 	}
 	nodeType := znode.ZNodeType_STANDARD
-	if slices.Contains(req.Flags, EPHEMERAL) {
+	if slices.Contains(req.Flags, zookeeper.EPHEMERAL) {
 		nodeType = znode.ZNodeType_EPHEMERAL
 	}
 	newNode := znode.NewZNode(
@@ -85,7 +65,8 @@ func (s *Server) Create(req *CreateReq, resp *CreateResp) error {
 	return nil
 }
 
-func (s *Server) Delete(req *DeleteReq, _ *DeleteResp) error {
+// Delete deletes the ZNode at the given path if that ZNode is at the expected version.
+func (s *Server) Delete(req *zookeeper.DeleteReq, _ *zookeeper.DeleteResp) error {
 	err := validatePath(req.Path)
 	if err != nil {
 		return err
@@ -115,7 +96,9 @@ func (s *Server) Delete(req *DeleteReq, _ *DeleteResp) error {
 	return nil
 }
 
-func (s *Server) Exists(req *ExistsReq, resp *ExistsResp) error {
+// Exists returns true if the ZNode with path name path exists, and returns false otherwise. The watch flag
+// enables a client to set a watch on the ZNode.
+func (s *Server) Exists(req *zookeeper.ExistsReq, resp *zookeeper.ExistsResp) error {
 	err := validatePath(req.Path)
 	if err != nil {
 		return err
@@ -129,7 +112,10 @@ func (s *Server) Exists(req *ExistsReq, resp *ExistsResp) error {
 	return nil
 }
 
-func (s *Server) GetData(req *GetDataReq, resp *GetDataResp) error {
+// GetData returns the data and metadata, such as version information, associated with the ZNode.
+// The watch flag works in the same way as it does for exists(), except that ZooKeeper does not set the watch
+// if the ZNode does not exist.
+func (s *Server) GetData(req *zookeeper.GetDataReq, resp *zookeeper.GetDataResp) error {
 	err := validatePath(req.Path)
 	if err != nil {
 		return err
@@ -138,7 +124,6 @@ func (s *Server) GetData(req *GetDataReq, resp *GetDataResp) error {
 
 	node := findZNode(s.root, names)
 	if node == nil {
-		// TODO: Should we return an error if the node doesn't exist?
 		return nil
 	}
 	// TODO: Implement watching mechanism.
@@ -148,7 +133,8 @@ func (s *Server) GetData(req *GetDataReq, resp *GetDataResp) error {
 	return nil
 }
 
-func (s *Server) SetData(req *SetDataReq, _ *SetDataResp) error {
+// SetData writes data to the ZNode path if the version number is the current version of the ZNode.
+func (s *Server) SetData(req *zookeeper.SetDataReq, _ *zookeeper.SetDataResp) error {
 	err := validatePath(req.Path)
 	if err != nil {
 		return err
@@ -167,7 +153,8 @@ func (s *Server) SetData(req *SetDataReq, _ *SetDataResp) error {
 	return nil
 }
 
-func (s *Server) GetChildren(req *GetChildrenReq, resp *GetChildrenResp) error {
+// GetChildren returns the set of names of the children of a ZNode.
+func (s *Server) GetChildren(req *zookeeper.GetChildrenReq, resp *zookeeper.GetChildrenResp) error {
 	err := validatePath(req.Path)
 	if err != nil {
 		return err
@@ -190,7 +177,9 @@ func (s *Server) GetChildren(req *GetChildrenReq, resp *GetChildrenResp) error {
 	return nil
 }
 
-func (s *Server) Sync(_ *SyncReq, _ *SyncResp) error {
+// Sync waits for all updates pending at the start of the operation to propagate to the server
+// that the client is connected to. The path is currently ignored. (Using path is not discussed in the white paper)
+func (s *Server) Sync(_ *zookeeper.SyncReq, _ *zookeeper.SyncResp) error {
 	return fmt.Errorf("not implemented")
 }
 

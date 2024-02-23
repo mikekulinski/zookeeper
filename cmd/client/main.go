@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/rpc"
 
-	"github.com/mikekulinski/zookeeper/pkg/server"
+	"github.com/mikekulinski/zookeeper/pkg/zookeeper"
 )
 
 const (
@@ -19,12 +19,12 @@ func main() {
 	}
 
 	// Synchronous call
-	req := &server.CreateReq{
+	req := &zookeeper.CreateReq{
 		Path:  "/x/p",
 		Data:  []byte("Hello World!"),
-		Flags: []server.Flag{server.SEQUENTIAL},
+		Flags: []zookeeper.Flag{zookeeper.SEQUENTIAL},
 	}
-	reply := &server.CreateResp{}
+	reply := &zookeeper.CreateResp{}
 	err = client.Call("Server.Create", req, reply)
 	if err != nil {
 		log.Fatal("server error:", err)
