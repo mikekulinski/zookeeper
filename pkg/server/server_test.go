@@ -58,7 +58,11 @@ func TestServer_Create(t *testing.T) {
 				existingNodeName: znode.NewZNode(existingNodeName, 0, test.parentNodeType, nil),
 			}
 
-			_, err := zk.Create(test.path, nil)
+			req := &CreateReq{
+				Path: test.path,
+			}
+			resp := &CreateResp{}
+			err := zk.Create(req, resp)
 			if test.errorExpected {
 				assert.Error(t, err)
 			} else {
@@ -109,12 +113,17 @@ func TestServer_Create_Sequential(t *testing.T) {
 				existingNodeName: existingNode,
 			}
 
-			actualName, err := zk.Create(test.path, nil, SEQUENTIAL)
+			req := &CreateReq{
+				Path:  test.path,
+				Flags: []Flag{SEQUENTIAL},
+			}
+			resp := &CreateResp{}
+			err := zk.Create(req, resp)
 			if test.errorExpected {
-				assert.Empty(t, actualName)
+				assert.Empty(t, resp.ZNodeName)
 				assert.Error(t, err)
 			} else {
-				assert.Equal(t, "new_5", actualName)
+				assert.Equal(t, "new_5", resp.ZNodeName)
 				assert.NoError(t, err)
 			}
 		})
@@ -176,9 +185,15 @@ func TestServer_Delete(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			zk := NewServer()
-			_, err := zk.Create("/"+rootChildName, nil)
+			req := &CreateReq{
+				Path: "/" + rootChildName,
+			}
+			err := zk.Create(req, &CreateResp{})
 			require.NoError(t, err)
-			_, err = zk.Create(fmt.Sprintf("/%s/%s", rootChildName, childChildName), nil)
+			req = &CreateReq{
+				Path: fmt.Sprintf("/%s/%s", rootChildName, childChildName),
+			}
+			err = zk.Create(req, &CreateResp{})
 			require.NoError(t, err)
 
 			err = zk.Delete(test.path, test.version)
@@ -239,9 +254,15 @@ func TestServer_Exists_NodeCreated(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			zk := NewServer()
-			_, err := zk.Create("/"+rootChildName, nil)
+			req := &CreateReq{
+				Path: "/" + rootChildName,
+			}
+			err := zk.Create(req, &CreateResp{})
 			require.NoError(t, err)
-			_, err = zk.Create(fmt.Sprintf("/%s/%s", rootChildName, childChildName), nil)
+			req = &CreateReq{
+				Path: fmt.Sprintf("/%s/%s", rootChildName, childChildName),
+			}
+			err = zk.Create(req, &CreateResp{})
 			require.NoError(t, err)
 
 			exists, err := zk.Exists(test.path, false)
@@ -279,9 +300,15 @@ func TestServer_Exists_NodeCreatedThenDeleted(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			zk := NewServer()
 			// Create nodes to check for.
-			_, err := zk.Create("/"+rootChildName, nil)
+			req := &CreateReq{
+				Path: "/" + rootChildName,
+			}
+			err := zk.Create(req, &CreateResp{})
 			require.NoError(t, err)
-			_, err = zk.Create(fmt.Sprintf("/%s/%s", rootChildName, childChildName), nil)
+			req = &CreateReq{
+				Path: fmt.Sprintf("/%s/%s", rootChildName, childChildName),
+			}
+			err = zk.Create(req, &CreateResp{})
 			require.NoError(t, err)
 			// Delete all those nodes to verify we deleted them.
 			err = zk.Delete(fmt.Sprintf("/%s/%s", rootChildName, childChildName), -1)
@@ -343,9 +370,18 @@ func TestServer_GetData(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			zk := NewServer()
-			_, err := zk.Create("/"+rootChildName, test.data)
+			req := &CreateReq{
+				Path: "/" + rootChildName,
+				Data: test.data,
+			}
+			err := zk.Create(req, &CreateResp{})
 			require.NoError(t, err)
-			_, err = zk.Create(fmt.Sprintf("/%s/%s", rootChildName, childChildName), test.data)
+			req = &CreateReq{
+				Path: fmt.Sprintf("/%s/%s", rootChildName, childChildName),
+				Data: test.data,
+			}
+			err = zk.Create(req, &CreateResp{})
+			require.NoError(t, err)
 			require.NoError(t, err)
 
 			// Set the versions on the nodes so we can differentiate between missing nodes and nodes that exists but
@@ -426,9 +462,15 @@ func TestServer_SetData(t *testing.T) {
 			dataToSet := []byte("you're a wizard Harry")
 
 			zk := NewServer()
-			_, err := zk.Create("/"+rootChildName, nil)
+			req := &CreateReq{
+				Path: "/" + rootChildName,
+			}
+			err := zk.Create(req, &CreateResp{})
 			require.NoError(t, err)
-			_, err = zk.Create(fmt.Sprintf("/%s/%s", rootChildName, childChildName), nil)
+			req = &CreateReq{
+				Path: fmt.Sprintf("/%s/%s", rootChildName, childChildName),
+			}
+			err = zk.Create(req, &CreateResp{})
 			require.NoError(t, err)
 
 			err = zk.SetData(test.path, dataToSet, test.version)
@@ -492,9 +534,15 @@ func TestServer_GetChildren(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			zk := NewServer()
-			_, err := zk.Create("/"+rootChildName, nil)
+			req := &CreateReq{
+				Path: "/" + rootChildName,
+			}
+			err := zk.Create(req, &CreateResp{})
 			require.NoError(t, err)
-			_, err = zk.Create(fmt.Sprintf("/%s/%s", rootChildName, childChildName), nil)
+			req = &CreateReq{
+				Path: fmt.Sprintf("/%s/%s", rootChildName, childChildName),
+			}
+			err = zk.Create(req, &CreateResp{})
 			require.NoError(t, err)
 
 			// Set the versions on the nodes so we can differentiate between missing nodes and nodes that exists but

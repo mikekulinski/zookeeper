@@ -8,21 +8,10 @@ import (
 	"github.com/mikekulinski/zookeeper/pkg/znode"
 )
 
-type Flag int
-
-const (
-	// EPHEMERAL indicates that the ZNode to be created should be automatically destroyed once the session
-	// has been terminated (either intentionally or on failure).
-	EPHEMERAL Flag = iota
-	// SEQUENTIAL indicates that the node to be created should have a monotonically increasing counter appended
-	// to the end of the provided name.
-	SEQUENTIAL
-)
-
 type Zookeeper interface {
 	// Create creates a ZNode with path name path, stores data in it, and returns the name of the new ZNode
 	// Flags can also be passed to pick certain attributes you want the ZNode to have.
-	Create(path string, data []byte, flags ...Flag) (ZNodeName string, err error)
+	Create(req *CreateReq, resp *CreateResp) error
 	// Delete deletes the ZNode at the given path if that ZNode is at the expected version.
 	Delete(path string, version int) error
 	// Exists returns true if the ZNode with path name path exists, and returns false otherwise. The watch flag
@@ -52,46 +41,48 @@ func NewServer() *Server {
 	}
 }
 
-func (s *Server) Create(path string, data []byte, flags ...Flag) (string, error) {
-	err := validatePath(path)
+func (s *Server) Create(req *CreateReq, resp *CreateResp) error {
+	err := validatePath(req.Path)
 	if err != nil {
-		return "", err
+		return err
 	}
-	names := splitPathIntoNodeNames(path)
+	names := splitPathIntoNodeNames(req.Path)
 
 	// Search down the tree until we hit the parent where we'll be creating this new node.
 	parent := findZNode(s.root, names[:len(names)-1])
 	if parent == nil {
-		return "", fmt.Errorf("at least one of the anscestors of this node are missing")
+		return fmt.Errorf("at least one of the anscestors of this node are missing")
 	}
 	if parent.NodeType == znode.ZNodeType_EPHEMERAL {
-		return "", fmt.Errorf("ephemeral nodes cannot have children")
+		return fmt.Errorf("ephemeral nodes cannot have children")
 	}
 
 	// We are at the parent node of the one we are trying to create. Now let's
 	// try to create it.
 	newName := names[len(names)-1]
-	if slices.Contains(flags, SEQUENTIAL) {
+	if slices.Contains(req.Flags, SEQUENTIAL) {
 		newName = fmt.Sprintf("%s_%d", newName, parent.NextSequentialNode)
 	}
 	nodeType := znode.ZNodeType_STANDARD
-	if slices.Contains(flags, EPHEMERAL) {
+	if slices.Contains(req.Flags, EPHEMERAL) {
 		nodeType = znode.ZNodeType_EPHEMERAL
 	}
 	newNode := znode.NewZNode(
 		newName,
 		0,
 		nodeType,
-		data,
+		req.Data,
 	)
 
 	if _, ok := parent.Children[newName]; ok {
-		return "", fmt.Errorf("node [%s] already exists at path [%s]", newName, path)
+		return fmt.Errorf("node [%s] already exists at path [%s]", newName, req.Path)
 	}
 	parent.Children[newName] = newNode
 	// Make sure to increment the counter so the next sequential node will have the next number.
 	parent.NextSequentialNode++
-	return newName, nil
+	// Set the response and return.
+	resp.ZNodeName = newName
+	return nil
 }
 
 func (s *Server) Delete(path string, version int) error {
