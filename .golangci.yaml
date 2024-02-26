@@ -13,5 +13,6 @@ linters:
     - govet
     - ineffassign
     - staticcheck
+    - unused
     - gci
     - gofmt

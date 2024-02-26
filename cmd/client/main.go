@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	zkc "github.com/mikekulinski/zookeeper/pkg/client"
+	"github.com/mikekulinski/zookeeper/pkg/zookeeper"
 )
 
 const (
@@ -21,4 +23,21 @@ func main() {
 			log.Fatal("error closing client:", err)
 		}
 	}()
+
+	cResp, err := client.Create(&zookeeper.CreateReq{
+		Path: "/zoo",
+		Data: []byte("Secrets hahahahaha!!"),
+	})
+	if err != nil {
+		log.Fatal("Error creating znode: ", err)
+	}
+	fmt.Println(cResp)
+
+	gResp, err := client.GetData(&zookeeper.GetDataReq{
+		Path: "/zoo",
+	})
+	if err != nil {
+		log.Fatal("Error getting data:", err)
+	}
+	fmt.Printf("%s", gResp.Data)
 }

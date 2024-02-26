@@ -19,7 +19,8 @@ type Server struct {
 
 func NewServer() *Server {
 	return &Server{
-		root: znode.NewZNode("", -1, znode.ZNodeType_STANDARD, nil),
+		root:     znode.NewZNode("", -1, znode.ZNodeType_STANDARD, nil),
+		sessions: map[string]*session.Session{},
 	}
 }
 
