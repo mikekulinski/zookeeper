@@ -23,7 +23,7 @@ func NewClient(endpoint string) (*Client, error) {
 	clientID := uuid.New().String()
 	// Initiate the connection with the Zookeeper server.
 	req := &zookeeper.ConnectReq{
-		ClientID: clientID,
+		ClientID: zookeeper.ClientID{ID: clientID},
 	}
 	resp := &zookeeper.ConnectResp{}
 	err = rpcClient.Call("Zookeeper.Connect", req, resp)
@@ -38,7 +38,7 @@ func NewClient(endpoint string) (*Client, error) {
 
 func (c *Client) Close() error {
 	req := &zookeeper.CloseReq{
-		ClientID: c.clientID,
+		ClientID: zookeeper.ClientID{ID: c.clientID},
 	}
 	resp := &zookeeper.CloseResp{}
 	err := c.rpcClient.Call("Zookeeper.Close", req, resp)
@@ -51,6 +51,7 @@ func (c *Client) Close() error {
 // Create creates a ZNode with path name path, stores data in it, and returns the name of the new ZNode
 // Flags can also be passed to pick certain attributes you want the ZNode to have.
 func (c *Client) Create(req *zookeeper.CreateReq) (*zookeeper.CreateResp, error) {
+	req.ClientID.ID = c.clientID
 	resp := &zookeeper.CreateResp{}
 	err := c.rpcClient.Call("Zookeeper.Create", req, resp)
 	if err != nil {
@@ -61,6 +62,7 @@ func (c *Client) Create(req *zookeeper.CreateReq) (*zookeeper.CreateResp, error)
 
 // Delete deletes the ZNode at the given path if that ZNode is at the expected version.
 func (c *Client) Delete(req *zookeeper.DeleteReq) (*zookeeper.DeleteResp, error) {
+	req.ClientID.ID = c.clientID
 	resp := &zookeeper.DeleteResp{}
 	err := c.rpcClient.Call("Zookeeper.Delete", req, resp)
 	if err != nil {
@@ -72,6 +74,7 @@ func (c *Client) Delete(req *zookeeper.DeleteReq) (*zookeeper.DeleteResp, error)
 // Exists returns true if the ZNode with path name path exists, and returns false otherwise. The watch flag
 // enables a client to set a watch on the ZNode.
 func (c *Client) Exists(req *zookeeper.ExistsReq) (*zookeeper.ExistsResp, error) {
+	req.ClientID.ID = c.clientID
 	resp := &zookeeper.ExistsResp{}
 	err := c.rpcClient.Call("Zookeeper.Exists", req, resp)
 	if err != nil {
@@ -84,6 +87,7 @@ func (c *Client) Exists(req *zookeeper.ExistsReq) (*zookeeper.ExistsResp, error)
 // The watch flag works in the same way as it does for exists(), except that ZooKeeper does not set the watch
 // if the ZNode does not exist.
 func (c *Client) GetData(req *zookeeper.GetDataReq) (*zookeeper.GetDataResp, error) {
+	req.ClientID.ID = c.clientID
 	resp := &zookeeper.GetDataResp{}
 	err := c.rpcClient.Call("Zookeeper.GetData", req, resp)
 	if err != nil {
@@ -94,6 +98,7 @@ func (c *Client) GetData(req *zookeeper.GetDataReq) (*zookeeper.GetDataResp, err
 
 // SetData writes data to the ZNode path if the version number is the current version of the ZNode.
 func (c *Client) SetData(req *zookeeper.SetDataReq) (*zookeeper.SetDataResp, error) {
+	req.ClientID.ID = c.clientID
 	resp := &zookeeper.SetDataResp{}
 	err := c.rpcClient.Call("Zookeeper.SetData", req, resp)
 	if err != nil {
@@ -104,6 +109,7 @@ func (c *Client) SetData(req *zookeeper.SetDataReq) (*zookeeper.SetDataResp, err
 
 // GetChildren returns the set of names of the children of a ZNode.
 func (c *Client) GetChildren(req *zookeeper.GetChildrenReq) (*zookeeper.GetChildrenResp, error) {
+	req.ClientID.ID = c.clientID
 	resp := &zookeeper.GetChildrenResp{}
 	err := c.rpcClient.Call("Zookeeper.GetChildren", req, resp)
 	if err != nil {
@@ -115,6 +121,7 @@ func (c *Client) GetChildren(req *zookeeper.GetChildrenReq) (*zookeeper.GetChild
 // Sync waits for all updates pending at the start of the operation to propagate to the server
 // that the client is connected to. The path is currently ignored. (Using path is not discussed in the white paper)
 func (c *Client) Sync(req *zookeeper.SyncReq) (*zookeeper.SyncResp, error) {
+	req.ClientID.ID = c.clientID
 	resp := &zookeeper.SyncResp{}
 	err := c.rpcClient.Call("Zookeeper.Sync", req, resp)
 	if err != nil {
