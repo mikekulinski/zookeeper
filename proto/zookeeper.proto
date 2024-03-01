@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package zookeeper;
+
+option go_package = "github.com/mikekulinski/zookeeper/proto/zookeeper";
+
+message CreateReq {
+  string path = 1;
+}
