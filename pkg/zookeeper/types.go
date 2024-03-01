@@ -44,7 +44,9 @@ type DeleteResp struct{}
 type ExistsReq struct {
 	ClientID
 
-	Path  string
+	Path string
+	// TODO: Should this be implemented as a function callback instead? How are we going to send another response
+	// to the same request? Maybe switch to using gRPC with streaming.
 	Watch bool
 }
 
