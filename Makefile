@@ -14,6 +14,7 @@ install:
 lint:
 	golangci-lint run --fix
 
+# Regen all our protos.
 generate:
 	protoc \
 		--go_out=$(PROTO_DIR) \

@@ -20,16 +20,71 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type CreateReq struct {
+type CreateRequest_Flag int32
+
+const (
+	// FLAG_EPHEMERAL indicates that the ZNode to be created should be automatically destroyed once the session
+	// has been terminated (either intentionally or on failure).
+	CreateRequest_FLAG_EPHEMERAL CreateRequest_Flag = 0
+	// FLAG_SEQUENTIAL indicates that the node to be created should have a monotonically increasing counter appended
+	// to the end of the provided name.
+	CreateRequest_FLAG_SEQUENTIAL CreateRequest_Flag = 1
+)
+
+// Enum value maps for CreateRequest_Flag.
+var (
+	CreateRequest_Flag_name = map[int32]string{
+		0: "FLAG_EPHEMERAL",
+		1: "FLAG_SEQUENTIAL",
+	}
+	CreateRequest_Flag_value = map[string]int32{
+		"FLAG_EPHEMERAL":  0,
+		"FLAG_SEQUENTIAL": 1,
+	}
+)
+
+func (x CreateRequest_Flag) Enum() *CreateRequest_Flag {
+	p := new(CreateRequest_Flag)
+	*p = x
+	return p
+}
+
+func (x CreateRequest_Flag) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (CreateRequest_Flag) Descriptor() protoreflect.EnumDescriptor {
+	return file_zookeeper_proto_enumTypes[0].Descriptor()
+}
+
+func (CreateRequest_Flag) Type() protoreflect.EnumType {
+	return &file_zookeeper_proto_enumTypes[0]
+}
+
+func (x CreateRequest_Flag) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use CreateRequest_Flag.Descriptor instead.
+func (CreateRequest_Flag) EnumDescriptor() ([]byte, []int) {
+	return file_zookeeper_proto_rawDescGZIP(), []int{0, 0}
+}
+
+type CreateRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// The virtual file path to the ZNode that we'd like to create. Follows standard Unix file path conventions.
 	Path string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	// The data that we'd like to save in the ZNode we're creating.
+	Data [][]byte `protobuf:"bytes,2,rep,name=data,proto3" json:"data,omitempty"`
+	// Flags are an optional array of arguments to create different types of ZNodes.
+	Flags []CreateRequest_Flag `protobuf:"varint,3,rep,packed,name=flags,proto3,enum=zookeeper.CreateRequest_Flag" json:"flags,omitempty"`
 }
 
-func (x *CreateReq) Reset() {
-	*x = CreateReq{}
+func (x *CreateRequest) Reset() {
+	*x = CreateRequest{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_zookeeper_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -37,13 +92,13 @@ func (x *CreateReq) Reset() {
 	}
 }
 
-func (x *CreateReq) String() string {
+func (x *CreateRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CreateReq) ProtoMessage() {}
+func (*CreateRequest) ProtoMessage() {}
 
-func (x *CreateReq) ProtoReflect() protoreflect.Message {
+func (x *CreateRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_zookeeper_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -55,29 +110,780 @@ func (x *CreateReq) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CreateReq.ProtoReflect.Descriptor instead.
-func (*CreateReq) Descriptor() ([]byte, []int) {
+// Deprecated: Use CreateRequest.ProtoReflect.Descriptor instead.
+func (*CreateRequest) Descriptor() ([]byte, []int) {
 	return file_zookeeper_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *CreateReq) GetPath() string {
+func (x *CreateRequest) GetPath() string {
 	if x != nil {
 		return x.Path
 	}
 	return ""
 }
 
+func (x *CreateRequest) GetData() [][]byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+func (x *CreateRequest) GetFlags() []CreateRequest_Flag {
+	if x != nil {
+		return x.Flags
+	}
+	return nil
+}
+
+type CreateResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// The name that Zookeeper has given to the ZNode. This is relevant when passing FLAG_SEQUENTIAL since the server
+	// will add a monotonically increasing as a suffix to the name.
+	ZNodeName string `protobuf:"bytes,1,opt,name=z_node_name,json=zNodeName,proto3" json:"z_node_name,omitempty"`
+}
+
+func (x *CreateResponse) Reset() {
+	*x = CreateResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_zookeeper_proto_msgTypes[1]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *CreateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateResponse) ProtoMessage() {}
+
+func (x *CreateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_zookeeper_proto_msgTypes[1]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateResponse.ProtoReflect.Descriptor instead.
+func (*CreateResponse) Descriptor() ([]byte, []int) {
+	return file_zookeeper_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *CreateResponse) GetZNodeName() string {
+	if x != nil {
+		return x.ZNodeName
+	}
+	return ""
+}
+
+type DeleteRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// The virtual file path to the ZNode that we'd like to delete.
+	Path string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	// The version that this ZNode is expected to be at. If the versions do not match, then we will fail the request.
+	Version int32 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+}
+
+func (x *DeleteRequest) Reset() {
+	*x = DeleteRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_zookeeper_proto_msgTypes[2]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *DeleteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteRequest) ProtoMessage() {}
+
+func (x *DeleteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_zookeeper_proto_msgTypes[2]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteRequest.ProtoReflect.Descriptor instead.
+func (*DeleteRequest) Descriptor() ([]byte, []int) {
+	return file_zookeeper_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *DeleteRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *DeleteRequest) GetVersion() int32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+type DeleteResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+}
+
+func (x *DeleteResponse) Reset() {
+	*x = DeleteResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_zookeeper_proto_msgTypes[3]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *DeleteResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteResponse) ProtoMessage() {}
+
+func (x *DeleteResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_zookeeper_proto_msgTypes[3]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteResponse.ProtoReflect.Descriptor instead.
+func (*DeleteResponse) Descriptor() ([]byte, []int) {
+	return file_zookeeper_proto_rawDescGZIP(), []int{3}
+}
+
+type ExistsRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// The virtual file path to the ZNode we are checking.
+	Path string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	// A flag indicating whether we would like to receive a callback for when this file changes.
+	Watch bool `protobuf:"varint,2,opt,name=watch,proto3" json:"watch,omitempty"`
+}
+
+func (x *ExistsRequest) Reset() {
+	*x = ExistsRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_zookeeper_proto_msgTypes[4]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ExistsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExistsRequest) ProtoMessage() {}
+
+func (x *ExistsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_zookeeper_proto_msgTypes[4]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExistsRequest.ProtoReflect.Descriptor instead.
+func (*ExistsRequest) Descriptor() ([]byte, []int) {
+	return file_zookeeper_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ExistsRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *ExistsRequest) GetWatch() bool {
+	if x != nil {
+		return x.Watch
+	}
+	return false
+}
+
+type ExistsResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// Whether or not that file exists.
+	Exists bool `protobuf:"varint,1,opt,name=exists,proto3" json:"exists,omitempty"`
+}
+
+func (x *ExistsResponse) Reset() {
+	*x = ExistsResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_zookeeper_proto_msgTypes[5]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ExistsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExistsResponse) ProtoMessage() {}
+
+func (x *ExistsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_zookeeper_proto_msgTypes[5]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExistsResponse.ProtoReflect.Descriptor instead.
+func (*ExistsResponse) Descriptor() ([]byte, []int) {
+	return file_zookeeper_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ExistsResponse) GetExists() bool {
+	if x != nil {
+		return x.Exists
+	}
+	return false
+}
+
+type GetDataRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// The virtual file path to the ZNode we are checking.
+	Path string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	// A flag indicating whether we would like to receive a callback for when this file changes.
+	Watch bool `protobuf:"varint,2,opt,name=watch,proto3" json:"watch,omitempty"`
+}
+
+func (x *GetDataRequest) Reset() {
+	*x = GetDataRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_zookeeper_proto_msgTypes[6]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetDataRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDataRequest) ProtoMessage() {}
+
+func (x *GetDataRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_zookeeper_proto_msgTypes[6]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDataRequest.ProtoReflect.Descriptor instead.
+func (*GetDataRequest) Descriptor() ([]byte, []int) {
+	return file_zookeeper_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *GetDataRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *GetDataRequest) GetWatch() bool {
+	if x != nil {
+		return x.Watch
+	}
+	return false
+}
+
+type GetDataResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// The data saved at this ZNode.
+	Data [][]byte `protobuf:"bytes,1,rep,name=data,proto3" json:"data,omitempty"`
+	// The version of this ZNode.
+	Version int32 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+}
+
+func (x *GetDataResponse) Reset() {
+	*x = GetDataResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_zookeeper_proto_msgTypes[7]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetDataResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDataResponse) ProtoMessage() {}
+
+func (x *GetDataResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_zookeeper_proto_msgTypes[7]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDataResponse.ProtoReflect.Descriptor instead.
+func (*GetDataResponse) Descriptor() ([]byte, []int) {
+	return file_zookeeper_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GetDataResponse) GetData() [][]byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+func (x *GetDataResponse) GetVersion() int32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+type SetDataRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// The virtual file path to the ZNode we are checking.
+	Path string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	// The data to save on this ZNode.
+	Data [][]byte `protobuf:"bytes,2,rep,name=data,proto3" json:"data,omitempty"`
+	// The version we expect this ZNode to be at.
+	Version int32 `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty"`
+}
+
+func (x *SetDataRequest) Reset() {
+	*x = SetDataRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_zookeeper_proto_msgTypes[8]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *SetDataRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetDataRequest) ProtoMessage() {}
+
+func (x *SetDataRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_zookeeper_proto_msgTypes[8]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetDataRequest.ProtoReflect.Descriptor instead.
+func (*SetDataRequest) Descriptor() ([]byte, []int) {
+	return file_zookeeper_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *SetDataRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *SetDataRequest) GetData() [][]byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+func (x *SetDataRequest) GetVersion() int32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+type SetDataResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+}
+
+func (x *SetDataResponse) Reset() {
+	*x = SetDataResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_zookeeper_proto_msgTypes[9]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *SetDataResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetDataResponse) ProtoMessage() {}
+
+func (x *SetDataResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_zookeeper_proto_msgTypes[9]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetDataResponse.ProtoReflect.Descriptor instead.
+func (*SetDataResponse) Descriptor() ([]byte, []int) {
+	return file_zookeeper_proto_rawDescGZIP(), []int{9}
+}
+
+type GetChildrenRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// The virtual file path to the ZNode we are checking.
+	Path string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	// A flag indicating whether we would like to receive a callback for when any of the children of this ZNode change.
+	Watch bool `protobuf:"varint,2,opt,name=watch,proto3" json:"watch,omitempty"`
+}
+
+func (x *GetChildrenRequest) Reset() {
+	*x = GetChildrenRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_zookeeper_proto_msgTypes[10]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetChildrenRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetChildrenRequest) ProtoMessage() {}
+
+func (x *GetChildrenRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_zookeeper_proto_msgTypes[10]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetChildrenRequest.ProtoReflect.Descriptor instead.
+func (*GetChildrenRequest) Descriptor() ([]byte, []int) {
+	return file_zookeeper_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *GetChildrenRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *GetChildrenRequest) GetWatch() bool {
+	if x != nil {
+		return x.Watch
+	}
+	return false
+}
+
+type GetChildrenResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// The file names of the children of the requested ZNode. This is just the file name. You can get the full path
+	// by appending this to the path to the parent.
+	// i.e. {parent_path}/{child_name}
+	Children []string `protobuf:"bytes,1,rep,name=children,proto3" json:"children,omitempty"`
+}
+
+func (x *GetChildrenResponse) Reset() {
+	*x = GetChildrenResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_zookeeper_proto_msgTypes[11]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetChildrenResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetChildrenResponse) ProtoMessage() {}
+
+func (x *GetChildrenResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_zookeeper_proto_msgTypes[11]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetChildrenResponse.ProtoReflect.Descriptor instead.
+func (*GetChildrenResponse) Descriptor() ([]byte, []int) {
+	return file_zookeeper_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *GetChildrenResponse) GetChildren() []string {
+	if x != nil {
+		return x.Children
+	}
+	return nil
+}
+
+type SyncRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// The virtual file path to the ZNode we are checking. This path is currently unused.
+	Path string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+}
+
+func (x *SyncRequest) Reset() {
+	*x = SyncRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_zookeeper_proto_msgTypes[12]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *SyncRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncRequest) ProtoMessage() {}
+
+func (x *SyncRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_zookeeper_proto_msgTypes[12]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncRequest.ProtoReflect.Descriptor instead.
+func (*SyncRequest) Descriptor() ([]byte, []int) {
+	return file_zookeeper_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *SyncRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+type SyncResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+}
+
+func (x *SyncResponse) Reset() {
+	*x = SyncResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_zookeeper_proto_msgTypes[13]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *SyncResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncResponse) ProtoMessage() {}
+
+func (x *SyncResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_zookeeper_proto_msgTypes[13]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncResponse.ProtoReflect.Descriptor instead.
+func (*SyncResponse) Descriptor() ([]byte, []int) {
+	return file_zookeeper_proto_rawDescGZIP(), []int{13}
+}
+
 var File_zookeeper_proto protoreflect.FileDescriptor
 
 var file_zookeeper_proto_rawDesc = []byte{
 	0x0a, 0x0f, 0x7a, 0x6f, 0x6f, 0x6b, 0x65, 0x65, 0x70, 0x65, 0x72, 0x2e, 0x70, 0x72, 0x6f, 0x74,
-	0x6f, 0x12, 0x09, 0x7a, 0x6f, 0x6f, 0x6b, 0x65, 0x65, 0x70, 0x65, 0x72, 0x22, 0x1f, 0x0a, 0x09,
-	0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x52, 0x65, 0x71, 0x12, 0x12, 0x0a, 0x04, 0x70, 0x61, 0x74,
-	0x68, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x70, 0x61, 0x74, 0x68, 0x42, 0x33, 0x5a,
-	0x31, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x6d, 0x69, 0x6b, 0x65,
-	0x6b, 0x75, 0x6c, 0x69, 0x6e, 0x73, 0x6b, 0x69, 0x2f, 0x7a, 0x6f, 0x6f, 0x6b, 0x65, 0x65, 0x70,
-	0x65, 0x72, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x7a, 0x6f, 0x6f, 0x6b, 0x65, 0x65, 0x70,
-	0x65, 0x72, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x6f, 0x12, 0x09, 0x7a, 0x6f, 0x6f, 0x6b, 0x65, 0x65, 0x70, 0x65, 0x72, 0x22, 0x9d, 0x01, 0x0a,
+	0x0d, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x12,
+	0x0a, 0x04, 0x70, 0x61, 0x74, 0x68, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x70, 0x61,
+	0x74, 0x68, 0x12, 0x12, 0x0a, 0x04, 0x64, 0x61, 0x74, 0x61, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0c,
+	0x52, 0x04, 0x64, 0x61, 0x74, 0x61, 0x12, 0x33, 0x0a, 0x05, 0x66, 0x6c, 0x61, 0x67, 0x73, 0x18,
+	0x03, 0x20, 0x03, 0x28, 0x0e, 0x32, 0x1d, 0x2e, 0x7a, 0x6f, 0x6f, 0x6b, 0x65, 0x65, 0x70, 0x65,
+	0x72, 0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x2e,
+	0x46, 0x6c, 0x61, 0x67, 0x52, 0x05, 0x66, 0x6c, 0x61, 0x67, 0x73, 0x22, 0x2f, 0x0a, 0x04, 0x46,
+	0x6c, 0x61, 0x67, 0x12, 0x12, 0x0a, 0x0e, 0x46, 0x4c, 0x41, 0x47, 0x5f, 0x45, 0x50, 0x48, 0x45,
+	0x4d, 0x45, 0x52, 0x41, 0x4c, 0x10, 0x00, 0x12, 0x13, 0x0a, 0x0f, 0x46, 0x4c, 0x41, 0x47, 0x5f,
+	0x53, 0x45, 0x51, 0x55, 0x45, 0x4e, 0x54, 0x49, 0x41, 0x4c, 0x10, 0x01, 0x22, 0x30, 0x0a, 0x0e,
+	0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x1e,
+	0x0a, 0x0b, 0x7a, 0x5f, 0x6e, 0x6f, 0x64, 0x65, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x09, 0x7a, 0x4e, 0x6f, 0x64, 0x65, 0x4e, 0x61, 0x6d, 0x65, 0x22, 0x3d,
+	0x0a, 0x0d, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12,
+	0x12, 0x0a, 0x04, 0x70, 0x61, 0x74, 0x68, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x70,
+	0x61, 0x74, 0x68, 0x12, 0x18, 0x0a, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x18, 0x02,
+	0x20, 0x01, 0x28, 0x05, 0x52, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x22, 0x10, 0x0a,
+	0x0e, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22,
+	0x39, 0x0a, 0x0d, 0x45, 0x78, 0x69, 0x73, 0x74, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+	0x12, 0x12, 0x0a, 0x04, 0x70, 0x61, 0x74, 0x68, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04,
+	0x70, 0x61, 0x74, 0x68, 0x12, 0x14, 0x0a, 0x05, 0x77, 0x61, 0x74, 0x63, 0x68, 0x18, 0x02, 0x20,
+	0x01, 0x28, 0x08, 0x52, 0x05, 0x77, 0x61, 0x74, 0x63, 0x68, 0x22, 0x28, 0x0a, 0x0e, 0x45, 0x78,
+	0x69, 0x73, 0x74, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x16, 0x0a, 0x06,
+	0x65, 0x78, 0x69, 0x73, 0x74, 0x73, 0x18, 0x01, 0x20, 0x01, 0x28, 0x08, 0x52, 0x06, 0x65, 0x78,
+	0x69, 0x73, 0x74, 0x73, 0x22, 0x3a, 0x0a, 0x0e, 0x47, 0x65, 0x74, 0x44, 0x61, 0x74, 0x61, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x12, 0x0a, 0x04, 0x70, 0x61, 0x74, 0x68, 0x18, 0x01,
+	0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x70, 0x61, 0x74, 0x68, 0x12, 0x14, 0x0a, 0x05, 0x77, 0x61,
+	0x74, 0x63, 0x68, 0x18, 0x02, 0x20, 0x01, 0x28, 0x08, 0x52, 0x05, 0x77, 0x61, 0x74, 0x63, 0x68,
+	0x22, 0x3f, 0x0a, 0x0f, 0x47, 0x65, 0x74, 0x44, 0x61, 0x74, 0x61, 0x52, 0x65, 0x73, 0x70, 0x6f,
+	0x6e, 0x73, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x64, 0x61, 0x74, 0x61, 0x18, 0x01, 0x20, 0x03, 0x28,
+	0x0c, 0x52, 0x04, 0x64, 0x61, 0x74, 0x61, 0x12, 0x18, 0x0a, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69,
+	0x6f, 0x6e, 0x18, 0x02, 0x20, 0x01, 0x28, 0x05, 0x52, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f,
+	0x6e, 0x22, 0x52, 0x0a, 0x0e, 0x53, 0x65, 0x74, 0x44, 0x61, 0x74, 0x61, 0x52, 0x65, 0x71, 0x75,
+	0x65, 0x73, 0x74, 0x12, 0x12, 0x0a, 0x04, 0x70, 0x61, 0x74, 0x68, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x09, 0x52, 0x04, 0x70, 0x61, 0x74, 0x68, 0x12, 0x12, 0x0a, 0x04, 0x64, 0x61, 0x74, 0x61, 0x18,
+	0x02, 0x20, 0x03, 0x28, 0x0c, 0x52, 0x04, 0x64, 0x61, 0x74, 0x61, 0x12, 0x18, 0x0a, 0x07, 0x76,
+	0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x18, 0x03, 0x20, 0x01, 0x28, 0x05, 0x52, 0x07, 0x76, 0x65,
+	0x72, 0x73, 0x69, 0x6f, 0x6e, 0x22, 0x11, 0x0a, 0x0f, 0x53, 0x65, 0x74, 0x44, 0x61, 0x74, 0x61,
+	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x3e, 0x0a, 0x12, 0x47, 0x65, 0x74, 0x43,
+	0x68, 0x69, 0x6c, 0x64, 0x72, 0x65, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x12,
+	0x0a, 0x04, 0x70, 0x61, 0x74, 0x68, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x70, 0x61,
+	0x74, 0x68, 0x12, 0x14, 0x0a, 0x05, 0x77, 0x61, 0x74, 0x63, 0x68, 0x18, 0x02, 0x20, 0x01, 0x28,
+	0x08, 0x52, 0x05, 0x77, 0x61, 0x74, 0x63, 0x68, 0x22, 0x31, 0x0a, 0x13, 0x47, 0x65, 0x74, 0x43,
+	0x68, 0x69, 0x6c, 0x64, 0x72, 0x65, 0x6e, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12,
+	0x1a, 0x0a, 0x08, 0x63, 0x68, 0x69, 0x6c, 0x64, 0x72, 0x65, 0x6e, 0x18, 0x01, 0x20, 0x03, 0x28,
+	0x09, 0x52, 0x08, 0x63, 0x68, 0x69, 0x6c, 0x64, 0x72, 0x65, 0x6e, 0x22, 0x21, 0x0a, 0x0b, 0x53,
+	0x79, 0x6e, 0x63, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x12, 0x0a, 0x04, 0x70, 0x61,
+	0x74, 0x68, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x70, 0x61, 0x74, 0x68, 0x22, 0x0e,
+	0x0a, 0x0c, 0x53, 0x79, 0x6e, 0x63, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0xe1,
+	0x03, 0x0a, 0x09, 0x5a, 0x6f, 0x6f, 0x6b, 0x65, 0x65, 0x70, 0x65, 0x72, 0x12, 0x3f, 0x0a, 0x06,
+	0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x12, 0x18, 0x2e, 0x7a, 0x6f, 0x6f, 0x6b, 0x65, 0x65, 0x70,
+	0x65, 0x72, 0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+	0x1a, 0x19, 0x2e, 0x7a, 0x6f, 0x6f, 0x6b, 0x65, 0x65, 0x70, 0x65, 0x72, 0x2e, 0x43, 0x72, 0x65,
+	0x61, 0x74, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x3f, 0x0a,
+	0x06, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x12, 0x18, 0x2e, 0x7a, 0x6f, 0x6f, 0x6b, 0x65, 0x65,
+	0x70, 0x65, 0x72, 0x2e, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x1a, 0x19, 0x2e, 0x7a, 0x6f, 0x6f, 0x6b, 0x65, 0x65, 0x70, 0x65, 0x72, 0x2e, 0x44, 0x65,
+	0x6c, 0x65, 0x74, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x3f,
+	0x0a, 0x06, 0x45, 0x78, 0x69, 0x73, 0x74, 0x73, 0x12, 0x18, 0x2e, 0x7a, 0x6f, 0x6f, 0x6b, 0x65,
+	0x65, 0x70, 0x65, 0x72, 0x2e, 0x45, 0x78, 0x69, 0x73, 0x74, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x1a, 0x19, 0x2e, 0x7a, 0x6f, 0x6f, 0x6b, 0x65, 0x65, 0x70, 0x65, 0x72, 0x2e, 0x45,
+	0x78, 0x69, 0x73, 0x74, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12,
+	0x42, 0x0a, 0x07, 0x47, 0x65, 0x74, 0x44, 0x61, 0x74, 0x61, 0x12, 0x19, 0x2e, 0x7a, 0x6f, 0x6f,
+	0x6b, 0x65, 0x65, 0x70, 0x65, 0x72, 0x2e, 0x47, 0x65, 0x74, 0x44, 0x61, 0x74, 0x61, 0x52, 0x65,
+	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1a, 0x2e, 0x7a, 0x6f, 0x6f, 0x6b, 0x65, 0x65, 0x70, 0x65,
+	0x72, 0x2e, 0x47, 0x65, 0x74, 0x44, 0x61, 0x74, 0x61, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
+	0x65, 0x22, 0x00, 0x12, 0x42, 0x0a, 0x07, 0x53, 0x65, 0x74, 0x44, 0x61, 0x74, 0x61, 0x12, 0x19,
+	0x2e, 0x7a, 0x6f, 0x6f, 0x6b, 0x65, 0x65, 0x70, 0x65, 0x72, 0x2e, 0x53, 0x65, 0x74, 0x44, 0x61,
+	0x74, 0x61, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1a, 0x2e, 0x7a, 0x6f, 0x6f, 0x6b,
+	0x65, 0x65, 0x70, 0x65, 0x72, 0x2e, 0x53, 0x65, 0x74, 0x44, 0x61, 0x74, 0x61, 0x52, 0x65, 0x73,
+	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x4e, 0x0a, 0x0b, 0x47, 0x65, 0x74, 0x43, 0x68,
+	0x69, 0x6c, 0x64, 0x72, 0x65, 0x6e, 0x12, 0x1d, 0x2e, 0x7a, 0x6f, 0x6f, 0x6b, 0x65, 0x65, 0x70,
+	0x65, 0x72, 0x2e, 0x47, 0x65, 0x74, 0x43, 0x68, 0x69, 0x6c, 0x64, 0x72, 0x65, 0x6e, 0x52, 0x65,
+	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x7a, 0x6f, 0x6f, 0x6b, 0x65, 0x65, 0x70, 0x65,
+	0x72, 0x2e, 0x47, 0x65, 0x74, 0x43, 0x68, 0x69, 0x6c, 0x64, 0x72, 0x65, 0x6e, 0x52, 0x65, 0x73,
+	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x39, 0x0a, 0x04, 0x53, 0x79, 0x6e, 0x63, 0x12,
+	0x16, 0x2e, 0x7a, 0x6f, 0x6f, 0x6b, 0x65, 0x65, 0x70, 0x65, 0x72, 0x2e, 0x53, 0x79, 0x6e, 0x63,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x17, 0x2e, 0x7a, 0x6f, 0x6f, 0x6b, 0x65, 0x65,
+	0x70, 0x65, 0x72, 0x2e, 0x53, 0x79, 0x6e, 0x63, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
+	0x22, 0x00, 0x42, 0x33, 0x5a, 0x31, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d,
+	0x2f, 0x6d, 0x69, 0x6b, 0x65, 0x6b, 0x75, 0x6c, 0x69, 0x6e, 0x73, 0x6b, 0x69, 0x2f, 0x7a, 0x6f,
+	0x6f, 0x6b, 0x65, 0x65, 0x70, 0x65, 0x72, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x7a, 0x6f,
+	0x6f, 0x6b, 0x65, 0x65, 0x70, 0x65, 0x72, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -92,16 +898,46 @@ func file_zookeeper_proto_rawDescGZIP() []byte {
 	return file_zookeeper_proto_rawDescData
 }
 
-var file_zookeeper_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_zookeeper_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_zookeeper_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_zookeeper_proto_goTypes = []interface{}{
-	(*CreateReq)(nil), // 0: zookeeper.CreateReq
+	(CreateRequest_Flag)(0),     // 0: zookeeper.CreateRequest.Flag
+	(*CreateRequest)(nil),       // 1: zookeeper.CreateRequest
+	(*CreateResponse)(nil),      // 2: zookeeper.CreateResponse
+	(*DeleteRequest)(nil),       // 3: zookeeper.DeleteRequest
+	(*DeleteResponse)(nil),      // 4: zookeeper.DeleteResponse
+	(*ExistsRequest)(nil),       // 5: zookeeper.ExistsRequest
+	(*ExistsResponse)(nil),      // 6: zookeeper.ExistsResponse
+	(*GetDataRequest)(nil),      // 7: zookeeper.GetDataRequest
+	(*GetDataResponse)(nil),     // 8: zookeeper.GetDataResponse
+	(*SetDataRequest)(nil),      // 9: zookeeper.SetDataRequest
+	(*SetDataResponse)(nil),     // 10: zookeeper.SetDataResponse
+	(*GetChildrenRequest)(nil),  // 11: zookeeper.GetChildrenRequest
+	(*GetChildrenResponse)(nil), // 12: zookeeper.GetChildrenResponse
+	(*SyncRequest)(nil),         // 13: zookeeper.SyncRequest
+	(*SyncResponse)(nil),        // 14: zookeeper.SyncResponse
 }
 var file_zookeeper_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0,  // 0: zookeeper.CreateRequest.flags:type_name -> zookeeper.CreateRequest.Flag
+	1,  // 1: zookeeper.Zookeeper.Create:input_type -> zookeeper.CreateRequest
+	3,  // 2: zookeeper.Zookeeper.Delete:input_type -> zookeeper.DeleteRequest
+	5,  // 3: zookeeper.Zookeeper.Exists:input_type -> zookeeper.ExistsRequest
+	7,  // 4: zookeeper.Zookeeper.GetData:input_type -> zookeeper.GetDataRequest
+	9,  // 5: zookeeper.Zookeeper.SetData:input_type -> zookeeper.SetDataRequest
+	11, // 6: zookeeper.Zookeeper.GetChildren:input_type -> zookeeper.GetChildrenRequest
+	13, // 7: zookeeper.Zookeeper.Sync:input_type -> zookeeper.SyncRequest
+	2,  // 8: zookeeper.Zookeeper.Create:output_type -> zookeeper.CreateResponse
+	4,  // 9: zookeeper.Zookeeper.Delete:output_type -> zookeeper.DeleteResponse
+	6,  // 10: zookeeper.Zookeeper.Exists:output_type -> zookeeper.ExistsResponse
+	8,  // 11: zookeeper.Zookeeper.GetData:output_type -> zookeeper.GetDataResponse
+	10, // 12: zookeeper.Zookeeper.SetData:output_type -> zookeeper.SetDataResponse
+	12, // 13: zookeeper.Zookeeper.GetChildren:output_type -> zookeeper.GetChildrenResponse
+	14, // 14: zookeeper.Zookeeper.Sync:output_type -> zookeeper.SyncResponse
+	8,  // [8:15] is the sub-list for method output_type
+	1,  // [1:8] is the sub-list for method input_type
+	1,  // [1:1] is the sub-list for extension type_name
+	1,  // [1:1] is the sub-list for extension extendee
+	0,  // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_zookeeper_proto_init() }
@@ -111,7 +947,163 @@ func file_zookeeper_proto_init() {
 	}
 	if !protoimpl.UnsafeEnabled {
 		file_zookeeper_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CreateReq); i {
+			switch v := v.(*CreateRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_zookeeper_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*CreateResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_zookeeper_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*DeleteRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_zookeeper_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*DeleteResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_zookeeper_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ExistsRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_zookeeper_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ExistsResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_zookeeper_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetDataRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_zookeeper_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetDataResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_zookeeper_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*SetDataRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_zookeeper_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*SetDataResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_zookeeper_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetChildrenRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_zookeeper_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetChildrenResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_zookeeper_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*SyncRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_zookeeper_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*SyncResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -128,13 +1120,14 @@ func file_zookeeper_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_zookeeper_proto_rawDesc,
-			NumEnums:      0,
-			NumMessages:   1,
+			NumEnums:      1,
+			NumMessages:   14,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_zookeeper_proto_goTypes,
 		DependencyIndexes: file_zookeeper_proto_depIdxs,
+		EnumInfos:         file_zookeeper_proto_enumTypes,
 		MessageInfos:      file_zookeeper_proto_msgTypes,
 	}.Build()
 	File_zookeeper_proto = out.File
