@@ -2,7 +2,7 @@ PROTO_DIR := proto
 
 install:
 	# Install all dependencies using homebrew.
-	brew install go golangci-lint protobuf
+	brew install golangci-lint protobuf
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 
