@@ -7,11 +7,19 @@ option go_package = "github.com/mikekulinski/zookeeper/proto/zookeeper";
 /*
 Messages for establishing and closing connections to Zookeeper.
 */
-message ConnectRequest {}
+message ConnectRequest {
+  // The UUID that represents the session.
+  // TODO: Replace this with a field saved as a header.
+  string client_id = 1;
+}
 
 message ConnectResponse{}
 
-message CloseRequest{}
+message CloseRequest{
+  // The UUID that represents the session.
+  // TODO: Replace this with a field saved as a header.
+  string client_id = 2;
+}
 
 message CloseResponse{}
 
@@ -23,7 +31,7 @@ message CreateRequest {
   // The virtual file path to the ZNode that we'd like to create. Follows standard Unix file path conventions.
   string path = 1;
   // The data that we'd like to save in the ZNode we're creating.
-  repeated bytes data = 2;
+  bytes data = 2;
 
   enum Flag {
     // FLAG_EPHEMERAL indicates that the ZNode to be created should be automatically destroyed once the session
@@ -48,7 +56,7 @@ message DeleteRequest {
   // The virtual file path to the ZNode that we'd like to delete.
   string path = 1;
   // The version that this ZNode is expected to be at. If the versions do not match, then we will fail the request.
-  int32 version = 2;
+  int64 version = 2;
 }
 
 message DeleteResponse {}
@@ -74,18 +82,18 @@ message GetDataRequest {
 
 message GetDataResponse {
   // The data saved at this ZNode.
-  repeated bytes data = 1;
+  bytes data = 1;
   // The version of this ZNode.
-  int32 version = 2;
+  int64 version = 2;
 }
 
 message SetDataRequest {
   // The virtual file path to the ZNode we are checking.
   string path = 1;
   // The data to save on this ZNode.
-  repeated bytes data = 2;
+  bytes data = 2;
   // The version we expect this ZNode to be at.
-  int32 version = 3;
+  int64 version = 3;
 }
 
 message SetDataResponse {}

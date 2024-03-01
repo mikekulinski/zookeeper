@@ -31,6 +31,6 @@ func validatePath(path string) error {
 
 // isValidVersion is used for conditional checks for update/delete operations. If the passed in version
 // is -1, then skip the version check. Otherwise, make sure the versions are equal.
-func isValidVersion(expected, actual int) bool {
+func isValidVersion(expected, actual int64) bool {
 	return expected == -1 || expected == actual
 }
