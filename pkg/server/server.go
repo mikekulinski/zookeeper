@@ -32,11 +32,11 @@ func NewServer() *Server {
 // Create creates a ZNode with path name path, stores data in it, and returns the name of the new ZNode
 // Flags can also be passed to pick certain attributes you want the ZNode to have.
 func (s *Server) Create(_ context.Context, req *pbzk.CreateRequest) (*pbzk.CreateResponse, error) {
-	err := validatePath(req.Path)
+	err := validatePath(req.GetPath())
 	if err != nil {
 		return nil, err
 	}
-	names := splitPathIntoNodeNames(req.Path)
+	names := splitPathIntoNodeNames(req.GetPath())
 
 	// Search down the tree until we hit the parent where we'll be creating this new node.
 	parent := findZNode(s.root, names[:len(names)-1])
@@ -50,11 +50,11 @@ func (s *Server) Create(_ context.Context, req *pbzk.CreateRequest) (*pbzk.Creat
 	// We are at the parent node of the one we are trying to create. Now let's
 	// try to create it.
 	newName := names[len(names)-1]
-	if slices.Contains(req.Flags, pbzk.CreateRequest_FLAG_SEQUENTIAL) {
+	if slices.Contains(req.GetFlags(), pbzk.CreateRequest_FLAG_SEQUENTIAL) {
 		newName = fmt.Sprintf("%s_%d", newName, parent.NextSequentialNode)
 	}
 	nodeType := znode.ZNodeType_STANDARD
-	if slices.Contains(req.Flags, pbzk.CreateRequest_FLAG_EPHEMERAL) {
+	if slices.Contains(req.GetFlags(), pbzk.CreateRequest_FLAG_EPHEMERAL) {
 		nodeType = znode.ZNodeType_EPHEMERAL
 	}
 	newNode := znode.NewZNode(
@@ -65,7 +65,7 @@ func (s *Server) Create(_ context.Context, req *pbzk.CreateRequest) (*pbzk.Creat
 	)
 
 	if _, ok := parent.Children[newName]; ok {
-		return nil, fmt.Errorf("node [%s] already exists at path [%s]", newName, req.Path)
+		return nil, fmt.Errorf("node [%s] already exists at path [%s]", newName, req.GetPath())
 	}
 	parent.Children[newName] = newNode
 	// Make sure to increment the counter so the next sequential node will have the next number.
@@ -80,11 +80,11 @@ func (s *Server) Create(_ context.Context, req *pbzk.CreateRequest) (*pbzk.Creat
 
 // Delete deletes the ZNode at the given path if that ZNode is at the expected version.
 func (s *Server) Delete(_ context.Context, req *pbzk.DeleteRequest) (*pbzk.DeleteResponse, error) {
-	err := validatePath(req.Path)
+	err := validatePath(req.GetPath())
 	if err != nil {
 		return nil, err
 	}
-	names := splitPathIntoNodeNames(req.Path)
+	names := splitPathIntoNodeNames(req.GetPath())
 
 	// Search down the tree until we hit the parent where we'll be creating this new node.
 	parent := findZNode(s.root, names[:len(names)-1])
@@ -99,7 +99,7 @@ func (s *Server) Delete(_ context.Context, req *pbzk.DeleteRequest) (*pbzk.Delet
 		return &pbzk.DeleteResponse{}, nil
 	}
 	if !isValidVersion(req.GetVersion(), node.Version) {
-		return nil, fmt.Errorf("invalid version: expected [%d], actual [%d]", req.Version, node.Version)
+		return nil, fmt.Errorf("invalid version: expected [%d], actual [%d]", req.GetVersion(), node.Version)
 	}
 	if len(node.Children) > 0 {
 		return nil, fmt.Errorf("the node specified has children. Only leaf nodes can be deleted")
@@ -112,11 +112,11 @@ func (s *Server) Delete(_ context.Context, req *pbzk.DeleteRequest) (*pbzk.Delet
 // Exists returns true if the ZNode with path name path exists, and returns false otherwise. The watch flag
 // enables a client to set a watch on the ZNode.
 func (s *Server) Exists(_ context.Context, req *pbzk.ExistsRequest) (*pbzk.ExistsResponse, error) {
-	err := validatePath(req.Path)
+	err := validatePath(req.GetPath())
 	if err != nil {
 		return nil, err
 	}
-	names := splitPathIntoNodeNames(req.Path)
+	names := splitPathIntoNodeNames(req.GetPath())
 
 	node := findZNode(s.root, names)
 	// TODO: Implement watching mechanism.
@@ -129,11 +129,11 @@ func (s *Server) Exists(_ context.Context, req *pbzk.ExistsRequest) (*pbzk.Exist
 // The watch flag works in the same way as it does for exists(), except that ZooKeeper does not set the watch
 // if the ZNode does not exist.
 func (s *Server) GetData(_ context.Context, req *pbzk.GetDataRequest) (*pbzk.GetDataResponse, error) {
-	err := validatePath(req.Path)
+	err := validatePath(req.GetPath())
 	if err != nil {
 		return nil, err
 	}
-	names := splitPathIntoNodeNames(req.Path)
+	names := splitPathIntoNodeNames(req.GetPath())
 
 	node := findZNode(s.root, names)
 	if node == nil {
@@ -148,31 +148,31 @@ func (s *Server) GetData(_ context.Context, req *pbzk.GetDataRequest) (*pbzk.Get
 
 // SetData writes data to the ZNode path if the version number is the current version of the ZNode.
 func (s *Server) SetData(_ context.Context, req *pbzk.SetDataRequest) (*pbzk.SetDataResponse, error) {
-	err := validatePath(req.Path)
+	err := validatePath(req.GetPath())
 	if err != nil {
 		return nil, err
 	}
-	names := splitPathIntoNodeNames(req.Path)
+	names := splitPathIntoNodeNames(req.GetPath())
 
 	node := findZNode(s.root, names)
 	if node == nil {
 		return nil, fmt.Errorf("node does not exist")
 	}
-	if !isValidVersion(req.Version, node.Version) {
-		return nil, fmt.Errorf("invalid version: expected [%d], actual [%d]", req.Version, node.Version)
+	if !isValidVersion(req.GetVersion(), node.Version) {
+		return nil, fmt.Errorf("invalid version: expected [%d], actual [%d]", req.GetVersion(), node.Version)
 	}
-	node.Data = req.Data
+	node.Data = req.GetData()
 	node.Version++
 	return &pbzk.SetDataResponse{}, nil
 }
 
 // GetChildren returns the set of names of the children of a ZNode.
 func (s *Server) GetChildren(_ context.Context, req *pbzk.GetChildrenRequest) (*pbzk.GetChildrenResponse, error) {
-	err := validatePath(req.Path)
+	err := validatePath(req.GetPath())
 	if err != nil {
 		return nil, err
 	}
-	names := splitPathIntoNodeNames(req.Path)
+	names := splitPathIntoNodeNames(req.GetPath())
 
 	node := findZNode(s.root, names)
 	if node == nil {

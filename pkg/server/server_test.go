@@ -1,11 +1,12 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
 	"github.com/mikekulinski/zookeeper/pkg/znode"
-	"github.com/mikekulinski/zookeeper/pkg/zookeeper"
+	pbzk "github.com/mikekulinski/zookeeper/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -53,17 +54,17 @@ func TestServer_Create(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
 			zk := NewServer()
 			// Pre-init the server with some nodes so we can also test cases with existing nodes.
 			zk.root.Children = map[string]*znode.ZNode{
 				existingNodeName: znode.NewZNode(existingNodeName, 0, test.parentNodeType, nil),
 			}
 
-			req := &zookeeper.CreateReq{
+			req := &pbzk.CreateRequest{
 				Path: test.path,
 			}
-			resp := &zookeeper.CreateResp{}
-			err := zk.Create(req, resp)
+			_, err := zk.Create(ctx, req)
 			if test.errorExpected {
 				assert.Error(t, err)
 			} else {
@@ -105,6 +106,7 @@ func TestServer_Create_Sequential(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
 			zk := NewServer()
 			// Pre-init the server with some nodes so we can also test cases with existing nodes.
 			zk.root.NextSequentialNode = 5
@@ -114,17 +116,16 @@ func TestServer_Create_Sequential(t *testing.T) {
 				existingNodeName: existingNode,
 			}
 
-			req := &zookeeper.CreateReq{
+			req := &pbzk.CreateRequest{
 				Path:  test.path,
-				Flags: []zookeeper.Flag{zookeeper.SEQUENTIAL},
+				Flags: []pbzk.CreateRequest_Flag{pbzk.CreateRequest_FLAG_SEQUENTIAL},
 			}
-			resp := &zookeeper.CreateResp{}
-			err := zk.Create(req, resp)
+			resp, err := zk.Create(ctx, req)
 			if test.errorExpected {
-				assert.Empty(t, resp.ZNodeName)
+				assert.Empty(t, resp.GetZNodeName())
 				assert.Error(t, err)
 			} else {
-				assert.Equal(t, "new_5", resp.ZNodeName)
+				assert.Equal(t, "new_5", resp.GetZNodeName())
 				assert.NoError(t, err)
 			}
 		})
@@ -137,7 +138,7 @@ func TestServer_Delete(t *testing.T) {
 	tests := []struct {
 		name            string
 		path            string
-		version         int
+		version         int64
 		errorExpected   bool
 		deleteSucceeded bool
 	}{
@@ -185,23 +186,24 @@ func TestServer_Delete(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
 			zk := NewServer()
-			cReq := &zookeeper.CreateReq{
+			cReq := &pbzk.CreateRequest{
 				Path: "/" + rootChildName,
 			}
-			err := zk.Create(cReq, &zookeeper.CreateResp{})
+			_, err := zk.Create(ctx, cReq)
 			require.NoError(t, err)
-			cReq = &zookeeper.CreateReq{
+			cReq = &pbzk.CreateRequest{
 				Path: fmt.Sprintf("/%s/%s", rootChildName, childChildName),
 			}
-			err = zk.Create(cReq, &zookeeper.CreateResp{})
+			_, err = zk.Create(ctx, cReq)
 			require.NoError(t, err)
 
-			dReq := &zookeeper.DeleteReq{
+			dReq := &pbzk.DeleteRequest{
 				Path:    test.path,
 				Version: test.version,
 			}
-			err = zk.Delete(dReq, &zookeeper.DeleteResp{})
+			_, err = zk.Delete(ctx, dReq)
 			if test.errorExpected {
 				assert.Error(t, err)
 			} else {
@@ -258,28 +260,28 @@ func TestServer_Exists_NodeCreated(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
 			zk := NewServer()
-			req := &zookeeper.CreateReq{
+			req := &pbzk.CreateRequest{
 				Path: "/" + rootChildName,
 			}
-			err := zk.Create(req, &zookeeper.CreateResp{})
+			_, err := zk.Create(ctx, req)
 			require.NoError(t, err)
-			req = &zookeeper.CreateReq{
+			req = &pbzk.CreateRequest{
 				Path: fmt.Sprintf("/%s/%s", rootChildName, childChildName),
 			}
-			err = zk.Create(req, &zookeeper.CreateResp{})
+			_, err = zk.Create(ctx, req)
 			require.NoError(t, err)
 
-			eReq := &zookeeper.ExistsReq{
+			eReq := &pbzk.ExistsRequest{
 				Path: test.path,
 			}
-			eResp := &zookeeper.ExistsResp{}
-			err = zk.Exists(eReq, eResp)
+			eResp, err := zk.Exists(ctx, eReq)
 			if test.errorExpected {
-				assert.False(t, eResp.Exists)
+				assert.False(t, eResp.GetExists())
 				assert.Error(t, err)
 			} else {
-				assert.Equal(t, test.exists, eResp.Exists)
+				assert.Equal(t, test.exists, eResp.GetExists())
 				assert.NoError(t, err)
 			}
 		})
@@ -307,39 +309,39 @@ func TestServer_Exists_NodeCreatedThenDeleted(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
 			zk := NewServer()
 			// Create nodes to check for.
-			cReq := &zookeeper.CreateReq{
+			cReq := &pbzk.CreateRequest{
 				Path: "/" + rootChildName,
 			}
-			err := zk.Create(cReq, &zookeeper.CreateResp{})
+			_, err := zk.Create(ctx, cReq)
 			require.NoError(t, err)
-			cReq = &zookeeper.CreateReq{
+			cReq = &pbzk.CreateRequest{
 				Path: fmt.Sprintf("/%s/%s", rootChildName, childChildName),
 			}
-			err = zk.Create(cReq, &zookeeper.CreateResp{})
+			_, err = zk.Create(ctx, cReq)
 			require.NoError(t, err)
 
 			// Delete all those nodes to verify we deleted them.
-			dReq := &zookeeper.DeleteReq{
+			dReq := &pbzk.DeleteRequest{
 				Path:    fmt.Sprintf("/%s/%s", rootChildName, childChildName),
 				Version: -1,
 			}
-			err = zk.Delete(dReq, &zookeeper.DeleteResp{})
+			_, err = zk.Delete(ctx, dReq)
 			require.NoError(t, err)
-			dReq = &zookeeper.DeleteReq{
+			dReq = &pbzk.DeleteRequest{
 				Path:    "/" + rootChildName,
 				Version: -1,
 			}
-			err = zk.Delete(dReq, &zookeeper.DeleteResp{})
+			_, err = zk.Delete(ctx, dReq)
 			require.NoError(t, err)
 
-			eReq := &zookeeper.ExistsReq{
+			eReq := &pbzk.ExistsRequest{
 				Path: test.path,
 			}
-			eResp := &zookeeper.ExistsResp{}
-			err = zk.Exists(eReq, eResp)
-			assert.Equal(t, test.exists, eResp.Exists)
+			eResp, err := zk.Exists(ctx, eReq)
+			assert.Equal(t, test.exists, eResp.GetExists())
 			assert.NoError(t, err)
 		})
 	}
@@ -352,7 +354,7 @@ func TestServer_GetData(t *testing.T) {
 		name          string
 		path          string
 		data          []byte
-		version       int
+		version       int64
 		errorExpected bool
 	}{
 		{
@@ -391,18 +393,19 @@ func TestServer_GetData(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
 			zk := NewServer()
-			req := &zookeeper.CreateReq{
+			req := &pbzk.CreateRequest{
 				Path: "/" + rootChildName,
 				Data: test.data,
 			}
-			err := zk.Create(req, &zookeeper.CreateResp{})
+			_, err := zk.Create(ctx, req)
 			require.NoError(t, err)
-			req = &zookeeper.CreateReq{
+			req = &pbzk.CreateRequest{
 				Path: fmt.Sprintf("/%s/%s", rootChildName, childChildName),
 				Data: test.data,
 			}
-			err = zk.Create(req, &zookeeper.CreateResp{})
+			_, err = zk.Create(ctx, req)
 			require.NoError(t, err)
 			require.NoError(t, err)
 
@@ -412,18 +415,17 @@ func TestServer_GetData(t *testing.T) {
 			rootChild.Version = test.version
 			rootChild.Children[childChildName].Version = test.version
 
-			gReq := &zookeeper.GetDataReq{
+			gReq := &pbzk.GetDataRequest{
 				Path: test.path,
 			}
-			gResp := &zookeeper.GetDataResp{}
-			err = zk.GetData(gReq, gResp)
+			gResp, err := zk.GetData(ctx, gReq)
 			if test.errorExpected {
-				assert.Empty(t, gResp.Data)
-				assert.Zero(t, gResp.Version)
+				assert.Empty(t, gResp.GetData())
+				assert.Zero(t, gResp.GetVersion())
 				assert.Error(t, err)
 			} else {
-				assert.Equal(t, test.data, gResp.Data)
-				assert.Empty(t, test.version, gResp.Version)
+				assert.Equal(t, test.data, gResp.GetData())
+				assert.Empty(t, test.version, gResp.GetVersion())
 				assert.NoError(t, err)
 			}
 		})
@@ -436,7 +438,7 @@ func TestServer_SetData(t *testing.T) {
 	tests := []struct {
 		name          string
 		path          string
-		version       int
+		version       int64
 		errorExpected bool
 		writeSucceeds bool
 	}{
@@ -485,27 +487,27 @@ func TestServer_SetData(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
 			dataToSet := []byte("you're a wizard Harry")
 
 			zk := NewServer()
-			req := &zookeeper.CreateReq{
+			req := &pbzk.CreateRequest{
 				Path: "/" + rootChildName,
 			}
-			err := zk.Create(req, &zookeeper.CreateResp{})
+			_, err := zk.Create(ctx, req)
 			require.NoError(t, err)
-			req = &zookeeper.CreateReq{
+			req = &pbzk.CreateRequest{
 				Path: fmt.Sprintf("/%s/%s", rootChildName, childChildName),
 			}
-			err = zk.Create(req, &zookeeper.CreateResp{})
+			_, err = zk.Create(ctx, req)
 			require.NoError(t, err)
 
-			sReq := &zookeeper.SetDataReq{
+			sReq := &pbzk.SetDataRequest{
 				Path:    test.path,
 				Data:    dataToSet,
 				Version: test.version,
 			}
-			sResp := &zookeeper.SetDataResp{}
-			err = zk.SetData(sReq, sResp)
+			_, err = zk.SetData(ctx, sReq)
 			if test.errorExpected {
 				assert.Error(t, err)
 			} else {
@@ -513,14 +515,13 @@ func TestServer_SetData(t *testing.T) {
 			}
 
 			if test.writeSucceeds {
-				gReq := &zookeeper.GetDataReq{
+				gReq := &pbzk.GetDataRequest{
 					Path: test.path,
 				}
-				gResp := &zookeeper.GetDataResp{}
-				err := zk.GetData(gReq, gResp)
-				assert.Equal(t, dataToSet, gResp.Data)
+				gResp, err := zk.GetData(ctx, gReq)
+				assert.Equal(t, dataToSet, gResp.GetData())
 				// We expect the set to increment the version.
-				assert.Equal(t, 1, gResp.Version)
+				assert.EqualValues(t, 1, gResp.GetVersion())
 				assert.NoError(t, err)
 			}
 		})
@@ -569,16 +570,17 @@ func TestServer_GetChildren(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
 			zk := NewServer()
-			req := &zookeeper.CreateReq{
+			req := &pbzk.CreateRequest{
 				Path: "/" + rootChildName,
 			}
-			err := zk.Create(req, &zookeeper.CreateResp{})
+			_, err := zk.Create(ctx, req)
 			require.NoError(t, err)
-			req = &zookeeper.CreateReq{
+			req = &pbzk.CreateRequest{
 				Path: fmt.Sprintf("/%s/%s", rootChildName, childChildName),
 			}
-			err = zk.Create(req, &zookeeper.CreateResp{})
+			_, err = zk.Create(ctx, req)
 			require.NoError(t, err)
 
 			// Set the versions on the nodes so we can differentiate between missing nodes and nodes that exists but
@@ -587,16 +589,15 @@ func TestServer_GetChildren(t *testing.T) {
 			rootChild.Version = 5
 			rootChild.Children[childChildName].Version = 5
 
-			cReq := &zookeeper.GetChildrenReq{
+			cReq := &pbzk.GetChildrenRequest{
 				Path: test.path,
 			}
-			cResp := &zookeeper.GetChildrenResp{}
-			err = zk.GetChildren(cReq, cResp)
+			cResp, err := zk.GetChildren(ctx, cReq)
 			if test.errorExpected {
-				assert.Empty(t, cResp.Children)
+				assert.Empty(t, cResp.GetChildren())
 				assert.Error(t, err)
 			} else {
-				assert.Equal(t, test.children, cResp.Children)
+				assert.Equal(t, test.children, cResp.GetChildren())
 				assert.NoError(t, err)
 			}
 		})
