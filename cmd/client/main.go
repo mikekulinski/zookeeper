@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/rpc"
 
-	"github.com/mikekulinski/zookeeper/pkg/server"
+	zkc "github.com/mikekulinski/zookeeper/pkg/client"
+	"github.com/mikekulinski/zookeeper/pkg/zookeeper"
 )
 
 const (
@@ -13,21 +13,31 @@ const (
 )
 
 func main() {
-	client, err := rpc.DialHTTP("tcp", serverAddress+":8080")
+	client, err := zkc.NewClient(serverAddress)
 	if err != nil {
 		log.Fatal("dialing:", err)
 	}
+	defer func() {
+		err := client.Close()
+		if err != nil {
+			log.Fatal("error closing client:", err)
+		}
+	}()
 
-	// Synchronous call
-	req := &server.CreateReq{
-		Path:  "/x/p",
-		Data:  []byte("Hello World!"),
-		Flags: []server.Flag{server.SEQUENTIAL},
-	}
-	reply := &server.CreateResp{}
-	err = client.Call("Server.Create", req, reply)
+	cResp, err := client.Create(&zookeeper.CreateReq{
+		Path: "/zoo",
+		Data: []byte("Secrets hahahahaha!!"),
+	})
 	if err != nil {
-		log.Fatal("server error:", err)
+		log.Fatal("Error creating znode: ", err)
 	}
-	fmt.Println(reply.ZNodeName)
+	fmt.Println(cResp)
+
+	gResp, err := client.GetData(&zookeeper.GetDataReq{
+		Path: "/zoo",
+	})
+	if err != nil {
+		log.Fatal("Error getting data:", err)
+	}
+	fmt.Printf("%s", gResp.Data)
 }
