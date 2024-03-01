@@ -1,11 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 
 	zkc "github.com/mikekulinski/zookeeper/pkg/client"
-	"github.com/mikekulinski/zookeeper/pkg/zookeeper"
+	pbzk "github.com/mikekulinski/zookeeper/proto"
 )
 
 const (
@@ -24,7 +25,9 @@ func main() {
 		}
 	}()
 
-	cResp, err := client.Create(&zookeeper.CreateReq{
+	fmt.Println("Connected to Zookeeper")
+
+	cResp, err := client.Create(context.TODO(), &pbzk.CreateRequest{
 		Path: "/zoo",
 		Data: []byte("Secrets hahahahaha!!"),
 	})
@@ -33,7 +36,7 @@ func main() {
 	}
 	fmt.Println(cResp)
 
-	gResp, err := client.GetData(&zookeeper.GetDataReq{
+	gResp, err := client.GetData(context.TODO(), &pbzk.GetDataRequest{
 		Path: "/zoo",
 	})
 	if err != nil {

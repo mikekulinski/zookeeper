@@ -1,34 +1,26 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net"
-	"net/http"
-	"net/rpc"
 
-	"github.com/mikekulinski/zookeeper/pkg/server"
-)
-
-const (
-	serverName = "Zookeeper"
+	zookeeper "github.com/mikekulinski/zookeeper/pkg/server"
+	pbzk "github.com/mikekulinski/zookeeper/proto"
+	"google.golang.org/grpc"
 )
 
 func main() {
-	zk := server.NewServer()
-	err := rpc.RegisterName(serverName, zk)
+	lis, err := net.Listen("tcp", ":8080")
 	if err != nil {
-		log.Fatal("register error:", err)
-	}
-	rpc.HandleHTTP()
-	l, err := net.Listen("tcp", ":8080")
-	if err != nil {
-		log.Fatal("listen error:", err)
+		log.Fatalf("failed to listen: %v", err)
 	}
 
-	fmt.Println("Listening on localhost:8080...")
-	err = http.Serve(l, nil)
-	if err != nil {
-		log.Fatal("serve error:", err)
+	s := grpc.NewServer()
+	zk := zookeeper.NewServer()
+	pbzk.RegisterZookeeperServer(s, zk)
+
+	log.Printf("server listening at %v", lis.Addr())
+	if err := s.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
 	}
 }
