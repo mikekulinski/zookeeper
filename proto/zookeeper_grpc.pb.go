@@ -19,6 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
+	Zookeeper_Connect_FullMethodName     = "/zookeeper.Zookeeper/Connect"
+	Zookeeper_Close_FullMethodName       = "/zookeeper.Zookeeper/Close"
 	Zookeeper_Create_FullMethodName      = "/zookeeper.Zookeeper/Create"
 	Zookeeper_Delete_FullMethodName      = "/zookeeper.Zookeeper/Delete"
 	Zookeeper_Exists_FullMethodName      = "/zookeeper.Zookeeper/Exists"
@@ -32,6 +34,9 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ZookeeperClient interface {
+	// Methods to manage the connection to Zookeeper.
+	Connect(ctx context.Context, in *ConnectRequest, opts ...grpc.CallOption) (*ConnectResponse, error)
+	Close(ctx context.Context, in *CloseRequest, opts ...grpc.CallOption) (*CloseResponse, error)
 	// Create creates a ZNode with path name path, stores data in it, and returns the name of the new ZNode
 	// Flags can also be passed to pick certain attributes you want the ZNode to have.
 	Create(ctx context.Context, in *CreateRequest, opts ...grpc.CallOption) (*CreateResponse, error)
@@ -59,6 +64,24 @@ type zookeeperClient struct {
 
 func NewZookeeperClient(cc grpc.ClientConnInterface) ZookeeperClient {
 	return &zookeeperClient{cc}
+}
+
+func (c *zookeeperClient) Connect(ctx context.Context, in *ConnectRequest, opts ...grpc.CallOption) (*ConnectResponse, error) {
+	out := new(ConnectResponse)
+	err := c.cc.Invoke(ctx, Zookeeper_Connect_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *zookeeperClient) Close(ctx context.Context, in *CloseRequest, opts ...grpc.CallOption) (*CloseResponse, error) {
+	out := new(CloseResponse)
+	err := c.cc.Invoke(ctx, Zookeeper_Close_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *zookeeperClient) Create(ctx context.Context, in *CreateRequest, opts ...grpc.CallOption) (*CreateResponse, error) {
@@ -128,6 +151,9 @@ func (c *zookeeperClient) Sync(ctx context.Context, in *SyncRequest, opts ...grp
 // All implementations must embed UnimplementedZookeeperServer
 // for forward compatibility
 type ZookeeperServer interface {
+	// Methods to manage the connection to Zookeeper.
+	Connect(context.Context, *ConnectRequest) (*ConnectResponse, error)
+	Close(context.Context, *CloseRequest) (*CloseResponse, error)
 	// Create creates a ZNode with path name path, stores data in it, and returns the name of the new ZNode
 	// Flags can also be passed to pick certain attributes you want the ZNode to have.
 	Create(context.Context, *CreateRequest) (*CreateResponse, error)
@@ -154,6 +180,12 @@ type ZookeeperServer interface {
 type UnimplementedZookeeperServer struct {
 }
 
+func (UnimplementedZookeeperServer) Connect(context.Context, *ConnectRequest) (*ConnectResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Connect not implemented")
+}
+func (UnimplementedZookeeperServer) Close(context.Context, *CloseRequest) (*CloseResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Close not implemented")
+}
 func (UnimplementedZookeeperServer) Create(context.Context, *CreateRequest) (*CreateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Create not implemented")
 }
@@ -186,6 +218,42 @@ type UnsafeZookeeperServer interface {
 
 func RegisterZookeeperServer(s grpc.ServiceRegistrar, srv ZookeeperServer) {
 	s.RegisterService(&Zookeeper_ServiceDesc, srv)
+}
+
+func _Zookeeper_Connect_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConnectRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ZookeeperServer).Connect(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Zookeeper_Connect_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ZookeeperServer).Connect(ctx, req.(*ConnectRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Zookeeper_Close_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CloseRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ZookeeperServer).Close(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Zookeeper_Close_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ZookeeperServer).Close(ctx, req.(*CloseRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _Zookeeper_Create_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -321,6 +389,14 @@ var Zookeeper_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "zookeeper.Zookeeper",
 	HandlerType: (*ZookeeperServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Connect",
+			Handler:    _Zookeeper_Connect_Handler,
+		},
+		{
+			MethodName: "Close",
+			Handler:    _Zookeeper_Close_Handler,
+		},
 		{
 			MethodName: "Create",
 			Handler:    _Zookeeper_Create_Handler,

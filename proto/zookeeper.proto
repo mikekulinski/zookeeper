@@ -4,6 +4,21 @@ package zookeeper;
 
 option go_package = "github.com/mikekulinski/zookeeper/proto/zookeeper";
 
+/*
+Messages for establishing and closing connections to Zookeeper.
+*/
+message ConnectRequest {}
+
+message ConnectResponse{}
+
+message CloseRequest{}
+
+message CloseResponse{}
+
+/*
+Messages that define the schema of each of our main APIs for the service.
+ */
+
 message CreateRequest {
   // The virtual file path to the ZNode that we'd like to create. Follows standard Unix file path conventions.
   string path = 1;
@@ -99,6 +114,17 @@ message SyncResponse {}
 // Zookeeper is gRPC implementation of the Zookeeper outlined in the following white paper.
 // www.usenix.org/legacy/event/atc10/tech/full_papers/Hunt.pdf
 service Zookeeper {
+  /*
+  Methods to manage the connection to Zookeeper.
+  */
+  rpc Connect (ConnectRequest) returns (ConnectResponse) {}
+
+  rpc Close (CloseRequest) returns (CloseResponse) {}
+
+  /*
+  Methods for using the actual Zookeeper service.
+  */
+
   // Create creates a ZNode with path name path, stores data in it, and returns the name of the new ZNode
   // Flags can also be passed to pick certain attributes you want the ZNode to have.
   rpc Create (CreateRequest) returns (CreateResponse) {}
