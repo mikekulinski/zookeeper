@@ -42,5 +42,5 @@ func main() {
 	if err != nil {
 		log.Fatal("Error getting data:", err)
 	}
-	fmt.Printf("%s", gResp.Data)
+	fmt.Printf("%s", gResp.GetData())
 }
