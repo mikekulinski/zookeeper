@@ -19,7 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	Zookeeper_SendMessage_FullMethodName = "/zookeeper.Zookeeper/SendMessage"
+	Zookeeper_Message_FullMethodName = "/zookeeper.Zookeeper/Message"
 )
 
 // ZookeeperClient is the client API for Zookeeper service.
@@ -27,7 +27,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ZookeeperClient interface {
 	// SendMessage is the generic bidirectional stream used for all communication between client and server.
-	SendMessage(ctx context.Context, opts ...grpc.CallOption) (Zookeeper_SendMessageClient, error)
+	Message(ctx context.Context, opts ...grpc.CallOption) (Zookeeper_MessageClient, error)
 }
 
 type zookeeperClient struct {
@@ -38,30 +38,30 @@ func NewZookeeperClient(cc grpc.ClientConnInterface) ZookeeperClient {
 	return &zookeeperClient{cc}
 }
 
-func (c *zookeeperClient) SendMessage(ctx context.Context, opts ...grpc.CallOption) (Zookeeper_SendMessageClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Zookeeper_ServiceDesc.Streams[0], Zookeeper_SendMessage_FullMethodName, opts...)
+func (c *zookeeperClient) Message(ctx context.Context, opts ...grpc.CallOption) (Zookeeper_MessageClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Zookeeper_ServiceDesc.Streams[0], Zookeeper_Message_FullMethodName, opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &zookeeperSendMessageClient{stream}
+	x := &zookeeperMessageClient{stream}
 	return x, nil
 }
 
-type Zookeeper_SendMessageClient interface {
+type Zookeeper_MessageClient interface {
 	Send(*ZookeeperRequest) error
 	Recv() (*ZookeeperResponse, error)
 	grpc.ClientStream
 }
 
-type zookeeperSendMessageClient struct {
+type zookeeperMessageClient struct {
 	grpc.ClientStream
 }
 
-func (x *zookeeperSendMessageClient) Send(m *ZookeeperRequest) error {
+func (x *zookeeperMessageClient) Send(m *ZookeeperRequest) error {
 	return x.ClientStream.SendMsg(m)
 }
 
-func (x *zookeeperSendMessageClient) Recv() (*ZookeeperResponse, error) {
+func (x *zookeeperMessageClient) Recv() (*ZookeeperResponse, error) {
 	m := new(ZookeeperResponse)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
@@ -74,7 +74,7 @@ func (x *zookeeperSendMessageClient) Recv() (*ZookeeperResponse, error) {
 // for forward compatibility
 type ZookeeperServer interface {
 	// SendMessage is the generic bidirectional stream used for all communication between client and server.
-	SendMessage(Zookeeper_SendMessageServer) error
+	Message(Zookeeper_MessageServer) error
 	mustEmbedUnimplementedZookeeperServer()
 }
 
@@ -82,8 +82,8 @@ type ZookeeperServer interface {
 type UnimplementedZookeeperServer struct {
 }
 
-func (UnimplementedZookeeperServer) SendMessage(Zookeeper_SendMessageServer) error {
-	return status.Errorf(codes.Unimplemented, "method SendMessage not implemented")
+func (UnimplementedZookeeperServer) Message(Zookeeper_MessageServer) error {
+	return status.Errorf(codes.Unimplemented, "method Message not implemented")
 }
 func (UnimplementedZookeeperServer) mustEmbedUnimplementedZookeeperServer() {}
 
@@ -98,25 +98,25 @@ func RegisterZookeeperServer(s grpc.ServiceRegistrar, srv ZookeeperServer) {
 	s.RegisterService(&Zookeeper_ServiceDesc, srv)
 }
 
-func _Zookeeper_SendMessage_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(ZookeeperServer).SendMessage(&zookeeperSendMessageServer{stream})
+func _Zookeeper_Message_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(ZookeeperServer).Message(&zookeeperMessageServer{stream})
 }
 
-type Zookeeper_SendMessageServer interface {
+type Zookeeper_MessageServer interface {
 	Send(*ZookeeperResponse) error
 	Recv() (*ZookeeperRequest, error)
 	grpc.ServerStream
 }
 
-type zookeeperSendMessageServer struct {
+type zookeeperMessageServer struct {
 	grpc.ServerStream
 }
 
-func (x *zookeeperSendMessageServer) Send(m *ZookeeperResponse) error {
+func (x *zookeeperMessageServer) Send(m *ZookeeperResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func (x *zookeeperSendMessageServer) Recv() (*ZookeeperRequest, error) {
+func (x *zookeeperMessageServer) Recv() (*ZookeeperRequest, error) {
 	m := new(ZookeeperRequest)
 	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
@@ -133,8 +133,8 @@ var Zookeeper_ServiceDesc = grpc.ServiceDesc{
 	Methods:     []grpc.MethodDesc{},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "SendMessage",
-			Handler:       _Zookeeper_SendMessage_Handler,
+			StreamName:    "Message",
+			Handler:       _Zookeeper_Message_Handler,
 			ServerStreams: true,
 			ClientStreams: true,
 		},

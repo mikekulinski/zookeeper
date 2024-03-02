@@ -7,7 +7,7 @@ option go_package = "github.com/mikekulinski/zookeeper/proto/zookeeper";
 import "watch.proto";
 
 /*
-Messages for establishing and closing connections to Zookeeper.
+Messages for establishing and keeping connections with Zookeeper.
 */
 message ConnectRequest {
   // The UUID that represents the session.
@@ -15,15 +15,10 @@ message ConnectRequest {
   string client_id = 1;
 }
 
-message ConnectResponse{}
-
-message CloseRequest{
-  // The UUID that represents the session.
-  // TODO: Replace this with a field saved as a header.
-  string client_id = 2;
+message Heartbeat {
+  // TODO: This is a placeholder value. Not sure if we even need anything.
+  uint64 sent_ts_ms = 1;
 }
-
-message CloseResponse{}
 
 /*
 Messages that define the schema of each of our main APIs for the service.
@@ -71,16 +66,8 @@ message ExistsRequest {
 }
 
 message ExistsResponse {
-  message ResponseMessage {
-    // Whether or not that file exists.
-    bool exists = 1;
-  }
-
-  // The server can return multiple types in the response. Either the results of the initial query, or a watch event.
-  oneof message {
-    ResponseMessage response = 1;
-    WatchEvent watch_event = 2;
-  }
+  // Whether or not that file exists.
+  bool exists = 1;
 }
 
 message GetDataRequest {
@@ -91,18 +78,10 @@ message GetDataRequest {
 }
 
 message GetDataResponse {
-  message ResponseMessage {
-    // The data saved at this ZNode.
-    bytes data = 1;
-    // The version of this ZNode.
-    int64 version = 2;
-  }
-
-  // The server can return multiple types in the response. Either the results of the initial query, or a watch event.
-  oneof message {
-    ResponseMessage response = 1;
-    WatchEvent watch_event = 2;
-  }
+  // The data saved at this ZNode.
+  bytes data = 1;
+  // The version of this ZNode.
+  int64 version = 2;
 }
 
 message SetDataRequest {
@@ -124,18 +103,10 @@ message GetChildrenRequest {
 }
 
 message GetChildrenResponse {
-  message ResponseMessage {
-    // The file names of the children of the requested ZNode. This is just the file name. You can get the full path
-    // by appending this to the path to the parent.
-    // i.e. {parent_path}/{child_name}
-    repeated string children = 1;
-  }
-
-  // The server can return multiple types in the response. Either the results of the initial query, or a watch event.
-  oneof message {
-    ResponseMessage response = 1;
-    WatchEvent watch_event = 2;
-  }
+  // The file names of the children of the requested ZNode. This is just the file name. You can get the full path
+  // by appending this to the path to the parent.
+  // i.e. {parent_path}/{child_name}
+  repeated string children = 1;
 }
 
 message SyncRequest {
@@ -150,8 +121,10 @@ message ZookeeperRequest {
   oneof message {
     // Connect establishes the connection and sets up recurring heartbeat messages to be sent from client -> server.
     ConnectRequest connect = 1;
-    // Close will destroy the connection between the client and the server so the server will stop sending messages.
-    CloseRequest close = 2;
+    // To prevent the session from timing out, the ZooKeeper client library sends a heartbeat after the session
+    // has been idle for s/3 ms and switch to a new server if it has not heard from a server for 2s/3 ms,
+    // where s is the session timeout in milliseconds.
+    Heartbeat heartbeat = 2;
     // Create creates a ZNode with path name path, stores data in it, and returns the name of the new ZNode
     // Flags can also be passed to pick certain attributes you want the ZNode to have.
     CreateRequest create = 3;
@@ -171,23 +144,19 @@ message ZookeeperRequest {
     // Sync waits for all updates pending at the start of the operation to propagate to the server
     // that the client is connected to. The path is currently ignored. (Using path is not discussed in the white paper)
     SyncRequest sync = 9;
-    // TODO: Heartbeat.
   }
 }
 
 message ZookeeperResponse {
   oneof message {
-    ConnectResponse connect = 1;
-    CloseResponse close = 2;
-    CreateResponse create = 3;
-    DeleteResponse delete = 4;
-    ExistsResponse exists = 5;
-    GetDataResponse get_data = 6;
-    SetDataResponse set_data = 7;
-    GetChildrenResponse get_children = 8;
-    SyncResponse sync = 9;
-    WatchEvent watch_event = 10;
-    // TODO: Heartbeat.
+    CreateResponse create = 1;
+    DeleteResponse delete = 2;
+    ExistsResponse exists = 3;
+    GetDataResponse get_data = 4;
+    SetDataResponse set_data = 5;
+    GetChildrenResponse get_children = 6;
+    SyncResponse sync = 7;
+    WatchEvent watch_event = 8;
   }
 }
 
@@ -197,5 +166,5 @@ message ZookeeperResponse {
 // bidirectional gRPC stream.
 service Zookeeper {
   // SendMessage is the generic bidirectional stream used for all communication between client and server.
-  rpc SendMessage (stream ZookeeperRequest) returns (stream ZookeeperResponse) {}
+  rpc Message (stream ZookeeperRequest) returns (stream ZookeeperResponse) {}
 }
