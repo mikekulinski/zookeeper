@@ -10,7 +10,7 @@ const (
 type ZNode struct {
 	// ZNode metadata.
 	Name               string
-	Version            int
+	Version            int64
 	Children           map[string]*ZNode
 	NodeType           ZNodeType
 	NextSequentialNode int
@@ -19,7 +19,7 @@ type ZNode struct {
 	Data []byte
 }
 
-func NewZNode(name string, version int, nodeType ZNodeType, data []byte) *ZNode {
+func NewZNode(name string, version int64, nodeType ZNodeType, data []byte) *ZNode {
 	return &ZNode{
 		Name:    name,
 		Version: version,
