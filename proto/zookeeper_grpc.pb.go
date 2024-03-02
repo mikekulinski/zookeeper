@@ -44,15 +44,15 @@ type ZookeeperClient interface {
 	Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteResponse, error)
 	// Exists returns true if the ZNode with path name path exists, and returns false otherwise. The watch flag
 	// enables a client to set a watch on the ZNode.
-	Exists(ctx context.Context, in *ExistsRequest, opts ...grpc.CallOption) (*ExistsResponse, error)
+	Exists(ctx context.Context, in *ExistsRequest, opts ...grpc.CallOption) (Zookeeper_ExistsClient, error)
 	// GetData returns the data and metadata, such as version information, associated with the ZNode.
 	// The watch flag works in the same way as it does for exists(), except that ZooKeeper does not set the watch
 	// if the ZNode does not exist.
-	GetData(ctx context.Context, in *GetDataRequest, opts ...grpc.CallOption) (*GetDataResponse, error)
+	GetData(ctx context.Context, in *GetDataRequest, opts ...grpc.CallOption) (Zookeeper_GetDataClient, error)
 	// SetData writes data to the ZNode path if the version number is the current version of the ZNode.
 	SetData(ctx context.Context, in *SetDataRequest, opts ...grpc.CallOption) (*SetDataResponse, error)
 	// GetChildren returns the set of names of the children of a ZNode.
-	GetChildren(ctx context.Context, in *GetChildrenRequest, opts ...grpc.CallOption) (*GetChildrenResponse, error)
+	GetChildren(ctx context.Context, in *GetChildrenRequest, opts ...grpc.CallOption) (Zookeeper_GetChildrenClient, error)
 	// Sync waits for all updates pending at the start of the operation to propagate to the server
 	// that the client is connected to. The path is currently ignored. (Using path is not discussed in the white paper)
 	Sync(ctx context.Context, in *SyncRequest, opts ...grpc.CallOption) (*SyncResponse, error)
@@ -102,22 +102,68 @@ func (c *zookeeperClient) Delete(ctx context.Context, in *DeleteRequest, opts ..
 	return out, nil
 }
 
-func (c *zookeeperClient) Exists(ctx context.Context, in *ExistsRequest, opts ...grpc.CallOption) (*ExistsResponse, error) {
-	out := new(ExistsResponse)
-	err := c.cc.Invoke(ctx, Zookeeper_Exists_FullMethodName, in, out, opts...)
+func (c *zookeeperClient) Exists(ctx context.Context, in *ExistsRequest, opts ...grpc.CallOption) (Zookeeper_ExistsClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Zookeeper_ServiceDesc.Streams[0], Zookeeper_Exists_FullMethodName, opts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &zookeeperExistsClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
 }
 
-func (c *zookeeperClient) GetData(ctx context.Context, in *GetDataRequest, opts ...grpc.CallOption) (*GetDataResponse, error) {
-	out := new(GetDataResponse)
-	err := c.cc.Invoke(ctx, Zookeeper_GetData_FullMethodName, in, out, opts...)
+type Zookeeper_ExistsClient interface {
+	Recv() (*ExistsResponse, error)
+	grpc.ClientStream
+}
+
+type zookeeperExistsClient struct {
+	grpc.ClientStream
+}
+
+func (x *zookeeperExistsClient) Recv() (*ExistsResponse, error) {
+	m := new(ExistsResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *zookeeperClient) GetData(ctx context.Context, in *GetDataRequest, opts ...grpc.CallOption) (Zookeeper_GetDataClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Zookeeper_ServiceDesc.Streams[1], Zookeeper_GetData_FullMethodName, opts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &zookeeperGetDataClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Zookeeper_GetDataClient interface {
+	Recv() (*GetDataResponse, error)
+	grpc.ClientStream
+}
+
+type zookeeperGetDataClient struct {
+	grpc.ClientStream
+}
+
+func (x *zookeeperGetDataClient) Recv() (*GetDataResponse, error) {
+	m := new(GetDataResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func (c *zookeeperClient) SetData(ctx context.Context, in *SetDataRequest, opts ...grpc.CallOption) (*SetDataResponse, error) {
@@ -129,13 +175,36 @@ func (c *zookeeperClient) SetData(ctx context.Context, in *SetDataRequest, opts 
 	return out, nil
 }
 
-func (c *zookeeperClient) GetChildren(ctx context.Context, in *GetChildrenRequest, opts ...grpc.CallOption) (*GetChildrenResponse, error) {
-	out := new(GetChildrenResponse)
-	err := c.cc.Invoke(ctx, Zookeeper_GetChildren_FullMethodName, in, out, opts...)
+func (c *zookeeperClient) GetChildren(ctx context.Context, in *GetChildrenRequest, opts ...grpc.CallOption) (Zookeeper_GetChildrenClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Zookeeper_ServiceDesc.Streams[2], Zookeeper_GetChildren_FullMethodName, opts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &zookeeperGetChildrenClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Zookeeper_GetChildrenClient interface {
+	Recv() (*GetChildrenResponse, error)
+	grpc.ClientStream
+}
+
+type zookeeperGetChildrenClient struct {
+	grpc.ClientStream
+}
+
+func (x *zookeeperGetChildrenClient) Recv() (*GetChildrenResponse, error) {
+	m := new(GetChildrenResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func (c *zookeeperClient) Sync(ctx context.Context, in *SyncRequest, opts ...grpc.CallOption) (*SyncResponse, error) {
@@ -161,15 +230,15 @@ type ZookeeperServer interface {
 	Delete(context.Context, *DeleteRequest) (*DeleteResponse, error)
 	// Exists returns true if the ZNode with path name path exists, and returns false otherwise. The watch flag
 	// enables a client to set a watch on the ZNode.
-	Exists(context.Context, *ExistsRequest) (*ExistsResponse, error)
+	Exists(*ExistsRequest, Zookeeper_ExistsServer) error
 	// GetData returns the data and metadata, such as version information, associated with the ZNode.
 	// The watch flag works in the same way as it does for exists(), except that ZooKeeper does not set the watch
 	// if the ZNode does not exist.
-	GetData(context.Context, *GetDataRequest) (*GetDataResponse, error)
+	GetData(*GetDataRequest, Zookeeper_GetDataServer) error
 	// SetData writes data to the ZNode path if the version number is the current version of the ZNode.
 	SetData(context.Context, *SetDataRequest) (*SetDataResponse, error)
 	// GetChildren returns the set of names of the children of a ZNode.
-	GetChildren(context.Context, *GetChildrenRequest) (*GetChildrenResponse, error)
+	GetChildren(*GetChildrenRequest, Zookeeper_GetChildrenServer) error
 	// Sync waits for all updates pending at the start of the operation to propagate to the server
 	// that the client is connected to. The path is currently ignored. (Using path is not discussed in the white paper)
 	Sync(context.Context, *SyncRequest) (*SyncResponse, error)
@@ -192,17 +261,17 @@ func (UnimplementedZookeeperServer) Create(context.Context, *CreateRequest) (*Cr
 func (UnimplementedZookeeperServer) Delete(context.Context, *DeleteRequest) (*DeleteResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
 }
-func (UnimplementedZookeeperServer) Exists(context.Context, *ExistsRequest) (*ExistsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Exists not implemented")
+func (UnimplementedZookeeperServer) Exists(*ExistsRequest, Zookeeper_ExistsServer) error {
+	return status.Errorf(codes.Unimplemented, "method Exists not implemented")
 }
-func (UnimplementedZookeeperServer) GetData(context.Context, *GetDataRequest) (*GetDataResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetData not implemented")
+func (UnimplementedZookeeperServer) GetData(*GetDataRequest, Zookeeper_GetDataServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetData not implemented")
 }
 func (UnimplementedZookeeperServer) SetData(context.Context, *SetDataRequest) (*SetDataResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetData not implemented")
 }
-func (UnimplementedZookeeperServer) GetChildren(context.Context, *GetChildrenRequest) (*GetChildrenResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetChildren not implemented")
+func (UnimplementedZookeeperServer) GetChildren(*GetChildrenRequest, Zookeeper_GetChildrenServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetChildren not implemented")
 }
 func (UnimplementedZookeeperServer) Sync(context.Context, *SyncRequest) (*SyncResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Sync not implemented")
@@ -292,40 +361,46 @@ func _Zookeeper_Delete_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Zookeeper_Exists_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ExistsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
+func _Zookeeper_Exists_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ExistsRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
 	}
-	if interceptor == nil {
-		return srv.(ZookeeperServer).Exists(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Zookeeper_Exists_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ZookeeperServer).Exists(ctx, req.(*ExistsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+	return srv.(ZookeeperServer).Exists(m, &zookeeperExistsServer{stream})
 }
 
-func _Zookeeper_GetData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetDataRequest)
-	if err := dec(in); err != nil {
-		return nil, err
+type Zookeeper_ExistsServer interface {
+	Send(*ExistsResponse) error
+	grpc.ServerStream
+}
+
+type zookeeperExistsServer struct {
+	grpc.ServerStream
+}
+
+func (x *zookeeperExistsServer) Send(m *ExistsResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _Zookeeper_GetData_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(GetDataRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
 	}
-	if interceptor == nil {
-		return srv.(ZookeeperServer).GetData(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Zookeeper_GetData_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ZookeeperServer).GetData(ctx, req.(*GetDataRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+	return srv.(ZookeeperServer).GetData(m, &zookeeperGetDataServer{stream})
+}
+
+type Zookeeper_GetDataServer interface {
+	Send(*GetDataResponse) error
+	grpc.ServerStream
+}
+
+type zookeeperGetDataServer struct {
+	grpc.ServerStream
+}
+
+func (x *zookeeperGetDataServer) Send(m *GetDataResponse) error {
+	return x.ServerStream.SendMsg(m)
 }
 
 func _Zookeeper_SetData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -346,22 +421,25 @@ func _Zookeeper_SetData_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Zookeeper_GetChildren_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetChildrenRequest)
-	if err := dec(in); err != nil {
-		return nil, err
+func _Zookeeper_GetChildren_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(GetChildrenRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
 	}
-	if interceptor == nil {
-		return srv.(ZookeeperServer).GetChildren(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Zookeeper_GetChildren_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ZookeeperServer).GetChildren(ctx, req.(*GetChildrenRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+	return srv.(ZookeeperServer).GetChildren(m, &zookeeperGetChildrenServer{stream})
+}
+
+type Zookeeper_GetChildrenServer interface {
+	Send(*GetChildrenResponse) error
+	grpc.ServerStream
+}
+
+type zookeeperGetChildrenServer struct {
+	grpc.ServerStream
+}
+
+func (x *zookeeperGetChildrenServer) Send(m *GetChildrenResponse) error {
+	return x.ServerStream.SendMsg(m)
 }
 
 func _Zookeeper_Sync_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -406,26 +484,30 @@ var Zookeeper_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Zookeeper_Delete_Handler,
 		},
 		{
-			MethodName: "Exists",
-			Handler:    _Zookeeper_Exists_Handler,
-		},
-		{
-			MethodName: "GetData",
-			Handler:    _Zookeeper_GetData_Handler,
-		},
-		{
 			MethodName: "SetData",
 			Handler:    _Zookeeper_SetData_Handler,
-		},
-		{
-			MethodName: "GetChildren",
-			Handler:    _Zookeeper_GetChildren_Handler,
 		},
 		{
 			MethodName: "Sync",
 			Handler:    _Zookeeper_Sync_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "Exists",
+			Handler:       _Zookeeper_Exists_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "GetData",
+			Handler:       _Zookeeper_GetData_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "GetChildren",
+			Handler:       _Zookeeper_GetChildren_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "zookeeper.proto",
 }

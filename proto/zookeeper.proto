@@ -142,18 +142,18 @@ service Zookeeper {
 
   // Exists returns true if the ZNode with path name path exists, and returns false otherwise. The watch flag
   // enables a client to set a watch on the ZNode.
-  rpc Exists (ExistsRequest) returns (ExistsResponse) {}
+  rpc Exists (ExistsRequest) returns (stream ExistsResponse) {}
 
   // GetData returns the data and metadata, such as version information, associated with the ZNode.
   // The watch flag works in the same way as it does for exists(), except that ZooKeeper does not set the watch
   // if the ZNode does not exist.
-  rpc GetData (GetDataRequest) returns (GetDataResponse) {}
+  rpc GetData (GetDataRequest) returns (stream GetDataResponse) {}
 
   // SetData writes data to the ZNode path if the version number is the current version of the ZNode.
   rpc SetData (SetDataRequest) returns (SetDataResponse) {}
 
   // GetChildren returns the set of names of the children of a ZNode.
-  rpc GetChildren (GetChildrenRequest) returns (GetChildrenResponse) {}
+  rpc GetChildren (GetChildrenRequest) returns (stream GetChildrenResponse) {}
 
   // Sync waits for all updates pending at the start of the operation to propagate to the server
   // that the client is connected to. The path is currently ignored. (Using path is not discussed in the white paper)
