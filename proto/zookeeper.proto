@@ -145,43 +145,57 @@ message SyncRequest {
 
 message SyncResponse {}
 
+
+message ZookeeperRequest {
+  oneof message {
+    // Connect establishes the connection and sets up recurring heartbeat messages to be sent from client -> server.
+    ConnectRequest connect = 1;
+    // Close will destroy the connection between the client and the server so the server will stop sending messages.
+    CloseRequest close = 2;
+    // Create creates a ZNode with path name path, stores data in it, and returns the name of the new ZNode
+    // Flags can also be passed to pick certain attributes you want the ZNode to have.
+    CreateRequest create = 3;
+    // Delete deletes the ZNode at the given path if that ZNode is at the expected version.
+    DeleteRequest delete = 4;
+    // Exists returns true if the ZNode with path name path exists, and returns false otherwise. The watch flag
+    // enables a client to set a watch on the ZNode.
+    ExistsRequest exists = 5;
+    // GetData returns the data and metadata, such as version information, associated with the ZNode.
+    // The watch flag works in the same way as it does for exists(), except that ZooKeeper does not set the watch
+    // if the ZNode does not exist.
+    GetDataRequest get_data = 6;
+    // SetData writes data to the ZNode path if the version number is the current version of the ZNode.
+    SetDataRequest set_data = 7;
+    // GetChildren returns the set of names of the children of a ZNode.
+    GetChildrenRequest get_children = 8;
+    // Sync waits for all updates pending at the start of the operation to propagate to the server
+    // that the client is connected to. The path is currently ignored. (Using path is not discussed in the white paper)
+    SyncRequest sync = 9;
+    // TODO: Heartbeat.
+  }
+}
+
+message ZookeeperResponse {
+  oneof message {
+    ConnectResponse connect = 1;
+    CloseResponse close = 2;
+    CreateResponse create = 3;
+    DeleteResponse delete = 4;
+    ExistsResponse exists = 5;
+    GetDataResponse get_data = 6;
+    SetDataResponse set_data = 7;
+    GetChildrenResponse get_children = 8;
+    SyncResponse sync = 9;
+    WatchEvent watch_event = 10;
+    // TODO: Heartbeat.
+  }
+}
+
 // Zookeeper is gRPC implementation of the Zookeeper outlined in the following white paper.
 // www.usenix.org/legacy/event/atc10/tech/full_papers/Hunt.pdf
+// Because both the client and server will be sending messages to each other, we will model the system as a
+// bidirectional gRPC stream.
 service Zookeeper {
-  /*
-  Methods to manage the connection to Zookeeper.
-  */
-  rpc Connect (ConnectRequest) returns (ConnectResponse) {}
-
-  rpc Close (CloseRequest) returns (CloseResponse) {}
-
-  /*
-  Methods for using the actual Zookeeper service.
-  */
-
-  // Create creates a ZNode with path name path, stores data in it, and returns the name of the new ZNode
-  // Flags can also be passed to pick certain attributes you want the ZNode to have.
-  rpc Create (CreateRequest) returns (CreateResponse) {}
-
-  // Delete deletes the ZNode at the given path if that ZNode is at the expected version.
-  rpc Delete (DeleteRequest) returns (DeleteResponse) {}
-
-  // Exists returns true if the ZNode with path name path exists, and returns false otherwise. The watch flag
-  // enables a client to set a watch on the ZNode.
-  rpc Exists (ExistsRequest) returns (stream ExistsResponse) {}
-
-  // GetData returns the data and metadata, such as version information, associated with the ZNode.
-  // The watch flag works in the same way as it does for exists(), except that ZooKeeper does not set the watch
-  // if the ZNode does not exist.
-  rpc GetData (GetDataRequest) returns (stream GetDataResponse) {}
-
-  // SetData writes data to the ZNode path if the version number is the current version of the ZNode.
-  rpc SetData (SetDataRequest) returns (SetDataResponse) {}
-
-  // GetChildren returns the set of names of the children of a ZNode.
-  rpc GetChildren (GetChildrenRequest) returns (stream GetChildrenResponse) {}
-
-  // Sync waits for all updates pending at the start of the operation to propagate to the server
-  // that the client is connected to. The path is currently ignored. (Using path is not discussed in the white paper)
-  rpc Sync (SyncRequest) returns (SyncResponse) {}
+  // SendMessage is the generic bidirectional stream used for all communication between client and server.
+  rpc SendMessage (stream ZookeeperRequest) returns (stream ZookeeperResponse) {}
 }

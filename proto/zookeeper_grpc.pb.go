@@ -19,43 +19,15 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	Zookeeper_Connect_FullMethodName     = "/zookeeper.Zookeeper/Connect"
-	Zookeeper_Close_FullMethodName       = "/zookeeper.Zookeeper/Close"
-	Zookeeper_Create_FullMethodName      = "/zookeeper.Zookeeper/Create"
-	Zookeeper_Delete_FullMethodName      = "/zookeeper.Zookeeper/Delete"
-	Zookeeper_Exists_FullMethodName      = "/zookeeper.Zookeeper/Exists"
-	Zookeeper_GetData_FullMethodName     = "/zookeeper.Zookeeper/GetData"
-	Zookeeper_SetData_FullMethodName     = "/zookeeper.Zookeeper/SetData"
-	Zookeeper_GetChildren_FullMethodName = "/zookeeper.Zookeeper/GetChildren"
-	Zookeeper_Sync_FullMethodName        = "/zookeeper.Zookeeper/Sync"
+	Zookeeper_SendMessage_FullMethodName = "/zookeeper.Zookeeper/SendMessage"
 )
 
 // ZookeeperClient is the client API for Zookeeper service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ZookeeperClient interface {
-	// Methods to manage the connection to Zookeeper.
-	Connect(ctx context.Context, in *ConnectRequest, opts ...grpc.CallOption) (*ConnectResponse, error)
-	Close(ctx context.Context, in *CloseRequest, opts ...grpc.CallOption) (*CloseResponse, error)
-	// Create creates a ZNode with path name path, stores data in it, and returns the name of the new ZNode
-	// Flags can also be passed to pick certain attributes you want the ZNode to have.
-	Create(ctx context.Context, in *CreateRequest, opts ...grpc.CallOption) (*CreateResponse, error)
-	// Delete deletes the ZNode at the given path if that ZNode is at the expected version.
-	Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteResponse, error)
-	// Exists returns true if the ZNode with path name path exists, and returns false otherwise. The watch flag
-	// enables a client to set a watch on the ZNode.
-	Exists(ctx context.Context, in *ExistsRequest, opts ...grpc.CallOption) (Zookeeper_ExistsClient, error)
-	// GetData returns the data and metadata, such as version information, associated with the ZNode.
-	// The watch flag works in the same way as it does for exists(), except that ZooKeeper does not set the watch
-	// if the ZNode does not exist.
-	GetData(ctx context.Context, in *GetDataRequest, opts ...grpc.CallOption) (Zookeeper_GetDataClient, error)
-	// SetData writes data to the ZNode path if the version number is the current version of the ZNode.
-	SetData(ctx context.Context, in *SetDataRequest, opts ...grpc.CallOption) (*SetDataResponse, error)
-	// GetChildren returns the set of names of the children of a ZNode.
-	GetChildren(ctx context.Context, in *GetChildrenRequest, opts ...grpc.CallOption) (Zookeeper_GetChildrenClient, error)
-	// Sync waits for all updates pending at the start of the operation to propagate to the server
-	// that the client is connected to. The path is currently ignored. (Using path is not discussed in the white paper)
-	Sync(ctx context.Context, in *SyncRequest, opts ...grpc.CallOption) (*SyncResponse, error)
+	// SendMessage is the generic bidirectional stream used for all communication between client and server.
+	SendMessage(ctx context.Context, opts ...grpc.CallOption) (Zookeeper_SendMessageClient, error)
 }
 
 type zookeeperClient struct {
@@ -66,182 +38,43 @@ func NewZookeeperClient(cc grpc.ClientConnInterface) ZookeeperClient {
 	return &zookeeperClient{cc}
 }
 
-func (c *zookeeperClient) Connect(ctx context.Context, in *ConnectRequest, opts ...grpc.CallOption) (*ConnectResponse, error) {
-	out := new(ConnectResponse)
-	err := c.cc.Invoke(ctx, Zookeeper_Connect_FullMethodName, in, out, opts...)
+func (c *zookeeperClient) SendMessage(ctx context.Context, opts ...grpc.CallOption) (Zookeeper_SendMessageClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Zookeeper_ServiceDesc.Streams[0], Zookeeper_SendMessage_FullMethodName, opts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
-}
-
-func (c *zookeeperClient) Close(ctx context.Context, in *CloseRequest, opts ...grpc.CallOption) (*CloseResponse, error) {
-	out := new(CloseResponse)
-	err := c.cc.Invoke(ctx, Zookeeper_Close_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *zookeeperClient) Create(ctx context.Context, in *CreateRequest, opts ...grpc.CallOption) (*CreateResponse, error) {
-	out := new(CreateResponse)
-	err := c.cc.Invoke(ctx, Zookeeper_Create_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *zookeeperClient) Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteResponse, error) {
-	out := new(DeleteResponse)
-	err := c.cc.Invoke(ctx, Zookeeper_Delete_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *zookeeperClient) Exists(ctx context.Context, in *ExistsRequest, opts ...grpc.CallOption) (Zookeeper_ExistsClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Zookeeper_ServiceDesc.Streams[0], Zookeeper_Exists_FullMethodName, opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &zookeeperExistsClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
+	x := &zookeeperSendMessageClient{stream}
 	return x, nil
 }
 
-type Zookeeper_ExistsClient interface {
-	Recv() (*ExistsResponse, error)
+type Zookeeper_SendMessageClient interface {
+	Send(*ZookeeperRequest) error
+	Recv() (*ZookeeperResponse, error)
 	grpc.ClientStream
 }
 
-type zookeeperExistsClient struct {
+type zookeeperSendMessageClient struct {
 	grpc.ClientStream
 }
 
-func (x *zookeeperExistsClient) Recv() (*ExistsResponse, error) {
-	m := new(ExistsResponse)
+func (x *zookeeperSendMessageClient) Send(m *ZookeeperRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *zookeeperSendMessageClient) Recv() (*ZookeeperResponse, error) {
+	m := new(ZookeeperResponse)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
 	return m, nil
-}
-
-func (c *zookeeperClient) GetData(ctx context.Context, in *GetDataRequest, opts ...grpc.CallOption) (Zookeeper_GetDataClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Zookeeper_ServiceDesc.Streams[1], Zookeeper_GetData_FullMethodName, opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &zookeeperGetDataClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-type Zookeeper_GetDataClient interface {
-	Recv() (*GetDataResponse, error)
-	grpc.ClientStream
-}
-
-type zookeeperGetDataClient struct {
-	grpc.ClientStream
-}
-
-func (x *zookeeperGetDataClient) Recv() (*GetDataResponse, error) {
-	m := new(GetDataResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (c *zookeeperClient) SetData(ctx context.Context, in *SetDataRequest, opts ...grpc.CallOption) (*SetDataResponse, error) {
-	out := new(SetDataResponse)
-	err := c.cc.Invoke(ctx, Zookeeper_SetData_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *zookeeperClient) GetChildren(ctx context.Context, in *GetChildrenRequest, opts ...grpc.CallOption) (Zookeeper_GetChildrenClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Zookeeper_ServiceDesc.Streams[2], Zookeeper_GetChildren_FullMethodName, opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &zookeeperGetChildrenClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-type Zookeeper_GetChildrenClient interface {
-	Recv() (*GetChildrenResponse, error)
-	grpc.ClientStream
-}
-
-type zookeeperGetChildrenClient struct {
-	grpc.ClientStream
-}
-
-func (x *zookeeperGetChildrenClient) Recv() (*GetChildrenResponse, error) {
-	m := new(GetChildrenResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (c *zookeeperClient) Sync(ctx context.Context, in *SyncRequest, opts ...grpc.CallOption) (*SyncResponse, error) {
-	out := new(SyncResponse)
-	err := c.cc.Invoke(ctx, Zookeeper_Sync_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
 }
 
 // ZookeeperServer is the server API for Zookeeper service.
 // All implementations must embed UnimplementedZookeeperServer
 // for forward compatibility
 type ZookeeperServer interface {
-	// Methods to manage the connection to Zookeeper.
-	Connect(context.Context, *ConnectRequest) (*ConnectResponse, error)
-	Close(context.Context, *CloseRequest) (*CloseResponse, error)
-	// Create creates a ZNode with path name path, stores data in it, and returns the name of the new ZNode
-	// Flags can also be passed to pick certain attributes you want the ZNode to have.
-	Create(context.Context, *CreateRequest) (*CreateResponse, error)
-	// Delete deletes the ZNode at the given path if that ZNode is at the expected version.
-	Delete(context.Context, *DeleteRequest) (*DeleteResponse, error)
-	// Exists returns true if the ZNode with path name path exists, and returns false otherwise. The watch flag
-	// enables a client to set a watch on the ZNode.
-	Exists(*ExistsRequest, Zookeeper_ExistsServer) error
-	// GetData returns the data and metadata, such as version information, associated with the ZNode.
-	// The watch flag works in the same way as it does for exists(), except that ZooKeeper does not set the watch
-	// if the ZNode does not exist.
-	GetData(*GetDataRequest, Zookeeper_GetDataServer) error
-	// SetData writes data to the ZNode path if the version number is the current version of the ZNode.
-	SetData(context.Context, *SetDataRequest) (*SetDataResponse, error)
-	// GetChildren returns the set of names of the children of a ZNode.
-	GetChildren(*GetChildrenRequest, Zookeeper_GetChildrenServer) error
-	// Sync waits for all updates pending at the start of the operation to propagate to the server
-	// that the client is connected to. The path is currently ignored. (Using path is not discussed in the white paper)
-	Sync(context.Context, *SyncRequest) (*SyncResponse, error)
+	// SendMessage is the generic bidirectional stream used for all communication between client and server.
+	SendMessage(Zookeeper_SendMessageServer) error
 	mustEmbedUnimplementedZookeeperServer()
 }
 
@@ -249,32 +82,8 @@ type ZookeeperServer interface {
 type UnimplementedZookeeperServer struct {
 }
 
-func (UnimplementedZookeeperServer) Connect(context.Context, *ConnectRequest) (*ConnectResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Connect not implemented")
-}
-func (UnimplementedZookeeperServer) Close(context.Context, *CloseRequest) (*CloseResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Close not implemented")
-}
-func (UnimplementedZookeeperServer) Create(context.Context, *CreateRequest) (*CreateResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Create not implemented")
-}
-func (UnimplementedZookeeperServer) Delete(context.Context, *DeleteRequest) (*DeleteResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
-}
-func (UnimplementedZookeeperServer) Exists(*ExistsRequest, Zookeeper_ExistsServer) error {
-	return status.Errorf(codes.Unimplemented, "method Exists not implemented")
-}
-func (UnimplementedZookeeperServer) GetData(*GetDataRequest, Zookeeper_GetDataServer) error {
-	return status.Errorf(codes.Unimplemented, "method GetData not implemented")
-}
-func (UnimplementedZookeeperServer) SetData(context.Context, *SetDataRequest) (*SetDataResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetData not implemented")
-}
-func (UnimplementedZookeeperServer) GetChildren(*GetChildrenRequest, Zookeeper_GetChildrenServer) error {
-	return status.Errorf(codes.Unimplemented, "method GetChildren not implemented")
-}
-func (UnimplementedZookeeperServer) Sync(context.Context, *SyncRequest) (*SyncResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Sync not implemented")
+func (UnimplementedZookeeperServer) SendMessage(Zookeeper_SendMessageServer) error {
+	return status.Errorf(codes.Unimplemented, "method SendMessage not implemented")
 }
 func (UnimplementedZookeeperServer) mustEmbedUnimplementedZookeeperServer() {}
 
@@ -289,175 +98,30 @@ func RegisterZookeeperServer(s grpc.ServiceRegistrar, srv ZookeeperServer) {
 	s.RegisterService(&Zookeeper_ServiceDesc, srv)
 }
 
-func _Zookeeper_Connect_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ConnectRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ZookeeperServer).Connect(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Zookeeper_Connect_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ZookeeperServer).Connect(ctx, req.(*ConnectRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+func _Zookeeper_SendMessage_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(ZookeeperServer).SendMessage(&zookeeperSendMessageServer{stream})
 }
 
-func _Zookeeper_Close_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CloseRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ZookeeperServer).Close(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Zookeeper_Close_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ZookeeperServer).Close(ctx, req.(*CloseRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Zookeeper_Create_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ZookeeperServer).Create(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Zookeeper_Create_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ZookeeperServer).Create(ctx, req.(*CreateRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Zookeeper_Delete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ZookeeperServer).Delete(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Zookeeper_Delete_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ZookeeperServer).Delete(ctx, req.(*DeleteRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Zookeeper_Exists_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(ExistsRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(ZookeeperServer).Exists(m, &zookeeperExistsServer{stream})
-}
-
-type Zookeeper_ExistsServer interface {
-	Send(*ExistsResponse) error
+type Zookeeper_SendMessageServer interface {
+	Send(*ZookeeperResponse) error
+	Recv() (*ZookeeperRequest, error)
 	grpc.ServerStream
 }
 
-type zookeeperExistsServer struct {
+type zookeeperSendMessageServer struct {
 	grpc.ServerStream
 }
 
-func (x *zookeeperExistsServer) Send(m *ExistsResponse) error {
+func (x *zookeeperSendMessageServer) Send(m *ZookeeperResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func _Zookeeper_GetData_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(GetDataRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(ZookeeperServer).GetData(m, &zookeeperGetDataServer{stream})
-}
-
-type Zookeeper_GetDataServer interface {
-	Send(*GetDataResponse) error
-	grpc.ServerStream
-}
-
-type zookeeperGetDataServer struct {
-	grpc.ServerStream
-}
-
-func (x *zookeeperGetDataServer) Send(m *GetDataResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func _Zookeeper_SetData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SetDataRequest)
-	if err := dec(in); err != nil {
+func (x *zookeeperSendMessageServer) Recv() (*ZookeeperRequest, error) {
+	m := new(ZookeeperRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
-	if interceptor == nil {
-		return srv.(ZookeeperServer).SetData(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Zookeeper_SetData_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ZookeeperServer).SetData(ctx, req.(*SetDataRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Zookeeper_GetChildren_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(GetChildrenRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(ZookeeperServer).GetChildren(m, &zookeeperGetChildrenServer{stream})
-}
-
-type Zookeeper_GetChildrenServer interface {
-	Send(*GetChildrenResponse) error
-	grpc.ServerStream
-}
-
-type zookeeperGetChildrenServer struct {
-	grpc.ServerStream
-}
-
-func (x *zookeeperGetChildrenServer) Send(m *GetChildrenResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func _Zookeeper_Sync_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SyncRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ZookeeperServer).Sync(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Zookeeper_Sync_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ZookeeperServer).Sync(ctx, req.(*SyncRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+	return m, nil
 }
 
 // Zookeeper_ServiceDesc is the grpc.ServiceDesc for Zookeeper service.
@@ -466,47 +130,13 @@ func _Zookeeper_Sync_Handler(srv interface{}, ctx context.Context, dec func(inte
 var Zookeeper_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "zookeeper.Zookeeper",
 	HandlerType: (*ZookeeperServer)(nil),
-	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "Connect",
-			Handler:    _Zookeeper_Connect_Handler,
-		},
-		{
-			MethodName: "Close",
-			Handler:    _Zookeeper_Close_Handler,
-		},
-		{
-			MethodName: "Create",
-			Handler:    _Zookeeper_Create_Handler,
-		},
-		{
-			MethodName: "Delete",
-			Handler:    _Zookeeper_Delete_Handler,
-		},
-		{
-			MethodName: "SetData",
-			Handler:    _Zookeeper_SetData_Handler,
-		},
-		{
-			MethodName: "Sync",
-			Handler:    _Zookeeper_Sync_Handler,
-		},
-	},
+	Methods:     []grpc.MethodDesc{},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "Exists",
-			Handler:       _Zookeeper_Exists_Handler,
+			StreamName:    "SendMessage",
+			Handler:       _Zookeeper_SendMessage_Handler,
 			ServerStreams: true,
-		},
-		{
-			StreamName:    "GetData",
-			Handler:       _Zookeeper_GetData_Handler,
-			ServerStreams: true,
-		},
-		{
-			StreamName:    "GetChildren",
-			Handler:       _Zookeeper_GetChildren_Handler,
-			ServerStreams: true,
+			ClientStreams: true,
 		},
 	},
 	Metadata: "zookeeper.proto",
