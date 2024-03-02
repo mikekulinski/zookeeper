@@ -4,6 +4,8 @@ package zookeeper;
 
 option go_package = "github.com/mikekulinski/zookeeper/proto/zookeeper";
 
+import "watch.proto";
+
 /*
 Messages for establishing and closing connections to Zookeeper.
 */
@@ -69,8 +71,16 @@ message ExistsRequest {
 }
 
 message ExistsResponse {
-  // Whether or not that file exists.
-  bool exists = 1;
+  message ResponseMessage {
+    // Whether or not that file exists.
+    bool exists = 1;
+  }
+
+  // The server can return multiple types in the response. Either the results of the initial query, or a watch event.
+  oneof message {
+    ResponseMessage response = 1;
+    WatchEvent watch_event = 2;
+  }
 }
 
 message GetDataRequest {
@@ -81,10 +91,18 @@ message GetDataRequest {
 }
 
 message GetDataResponse {
-  // The data saved at this ZNode.
-  bytes data = 1;
-  // The version of this ZNode.
-  int64 version = 2;
+  message ResponseMessage {
+    // The data saved at this ZNode.
+    bytes data = 1;
+    // The version of this ZNode.
+    int64 version = 2;
+  }
+
+  // The server can return multiple types in the response. Either the results of the initial query, or a watch event.
+  oneof message {
+    ResponseMessage response = 1;
+    WatchEvent watch_event = 2;
+  }
 }
 
 message SetDataRequest {
@@ -106,10 +124,18 @@ message GetChildrenRequest {
 }
 
 message GetChildrenResponse {
-  // The file names of the children of the requested ZNode. This is just the file name. You can get the full path
-  // by appending this to the path to the parent.
-  // i.e. {parent_path}/{child_name}
-  repeated string children = 1;
+  message ResponseMessage {
+    // The file names of the children of the requested ZNode. This is just the file name. You can get the full path
+    // by appending this to the path to the parent.
+    // i.e. {parent_path}/{child_name}
+    repeated string children = 1;
+  }
+
+  // The server can return multiple types in the response. Either the results of the initial query, or a watch event.
+  oneof message {
+    ResponseMessage response = 1;
+    WatchEvent watch_event = 2;
+  }
 }
 
 message SyncRequest {
