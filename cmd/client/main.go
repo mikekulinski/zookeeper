@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"log"
 	"time"
@@ -21,7 +20,7 @@ func main() {
 		log.Fatal("dialing:", err)
 	}
 
-	fmt.Println("Connected to Zookeeper")
+	log.Println("Connected to Zookeeper")
 
 	requests := []*pbzk.ZookeeperRequest{
 		{
@@ -57,7 +56,7 @@ func main() {
 			if err != nil {
 				log.Fatalf("Failed to receive a message : %v", err)
 			}
-			fmt.Println(resp)
+			log.Println(resp)
 		}
 	}()
 	for _, request := range requests {
