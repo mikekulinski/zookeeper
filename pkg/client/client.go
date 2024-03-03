@@ -1,10 +1,7 @@
 package client
 
 import (
-	"context"
-	"fmt"
 	"log"
-	"time"
 
 	"github.com/google/uuid"
 	pbzk "github.com/mikekulinski/zookeeper/proto"
@@ -26,36 +23,11 @@ func NewClient(endpoint string) (*Client, error) {
 	}
 	grpcClient := pbzk.NewZookeeperClient(conn)
 
-	// Contact the server and print out its response.
-	ctx, cancel := context.WithTimeout(context.TODO(), time.Second)
-	defer cancel()
-
 	// Initiate the connection with the Zookeeper server.
 	clientID := uuid.New().String()
-	req := &pbzk.ConnectRequest{
-		ClientId: clientID,
-	}
-	_, err = grpcClient.Connect(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("error connecting to Zookeeper: %w", err)
-	}
+	// TODO: Include the clientID in the headers of every request.
 	return &Client{
 		ZookeeperClient: grpcClient,
 		clientID:        clientID,
 	}, nil
-}
-
-func (c *Client) Close() error {
-	// Contact the server and print out its response.
-	ctx, cancel := context.WithTimeout(context.TODO(), time.Second)
-	defer cancel()
-
-	req := &pbzk.CloseRequest{
-		ClientId: c.clientID,
-	}
-	_, err := c.ZookeeperClient.Close(ctx, req)
-	if err != nil {
-		return fmt.Errorf("error closing the Zookeeper connection: %w", err)
-	}
-	return nil
 }

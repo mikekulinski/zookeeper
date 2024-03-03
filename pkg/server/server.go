@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -31,7 +30,7 @@ func NewServer() *Server {
 
 // Create creates a ZNode with path name path, stores data in it, and returns the name of the new ZNode
 // Flags can also be passed to pick certain attributes you want the ZNode to have.
-func (s *Server) Create(_ context.Context, req *pbzk.CreateRequest) (*pbzk.CreateResponse, error) {
+func (s *Server) Create(req *pbzk.CreateRequest) (*pbzk.CreateResponse, error) {
 	err := validatePath(req.GetPath())
 	if err != nil {
 		return nil, err
@@ -79,7 +78,7 @@ func (s *Server) Create(_ context.Context, req *pbzk.CreateRequest) (*pbzk.Creat
 }
 
 // Delete deletes the ZNode at the given path if that ZNode is at the expected version.
-func (s *Server) Delete(_ context.Context, req *pbzk.DeleteRequest) (*pbzk.DeleteResponse, error) {
+func (s *Server) Delete(req *pbzk.DeleteRequest) (*pbzk.DeleteResponse, error) {
 	err := validatePath(req.GetPath())
 	if err != nil {
 		return nil, err
@@ -111,7 +110,7 @@ func (s *Server) Delete(_ context.Context, req *pbzk.DeleteRequest) (*pbzk.Delet
 
 // Exists returns true if the ZNode with path name path exists, and returns false otherwise. The watch flag
 // enables a client to set a watch on the ZNode.
-func (s *Server) Exists(_ context.Context, req *pbzk.ExistsRequest) (*pbzk.ExistsResponse, error) {
+func (s *Server) Exists(req *pbzk.ExistsRequest) (*pbzk.ExistsResponse, error) {
 	err := validatePath(req.GetPath())
 	if err != nil {
 		return nil, err
@@ -128,7 +127,7 @@ func (s *Server) Exists(_ context.Context, req *pbzk.ExistsRequest) (*pbzk.Exist
 // GetData returns the data and metadata, such as version information, associated with the ZNode.
 // The watch flag works in the same way as it does for exists(), except that ZooKeeper does not set the watch
 // if the ZNode does not exist.
-func (s *Server) GetData(_ context.Context, req *pbzk.GetDataRequest) (*pbzk.GetDataResponse, error) {
+func (s *Server) GetData(req *pbzk.GetDataRequest) (*pbzk.GetDataResponse, error) {
 	err := validatePath(req.GetPath())
 	if err != nil {
 		return nil, err
@@ -147,7 +146,7 @@ func (s *Server) GetData(_ context.Context, req *pbzk.GetDataRequest) (*pbzk.Get
 }
 
 // SetData writes data to the ZNode path if the version number is the current version of the ZNode.
-func (s *Server) SetData(_ context.Context, req *pbzk.SetDataRequest) (*pbzk.SetDataResponse, error) {
+func (s *Server) SetData(req *pbzk.SetDataRequest) (*pbzk.SetDataResponse, error) {
 	err := validatePath(req.GetPath())
 	if err != nil {
 		return nil, err
@@ -167,7 +166,7 @@ func (s *Server) SetData(_ context.Context, req *pbzk.SetDataRequest) (*pbzk.Set
 }
 
 // GetChildren returns the set of names of the children of a ZNode.
-func (s *Server) GetChildren(_ context.Context, req *pbzk.GetChildrenRequest) (*pbzk.GetChildrenResponse, error) {
+func (s *Server) GetChildren(req *pbzk.GetChildrenRequest) (*pbzk.GetChildrenResponse, error) {
 	err := validatePath(req.GetPath())
 	if err != nil {
 		return nil, err
@@ -192,7 +191,7 @@ func (s *Server) GetChildren(_ context.Context, req *pbzk.GetChildrenRequest) (*
 
 // Sync waits for all updates pending at the start of the operation to propagate to the server
 // that the client is connected to. The path is currently ignored. (Using path is not discussed in the white paper)
-func (s *Server) Sync(_ context.Context, _ *pbzk.SyncRequest) (*pbzk.SyncResponse, error) {
+func (s *Server) Sync(_ *pbzk.SyncRequest) (*pbzk.SyncResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Sync not implemented")
 }
 

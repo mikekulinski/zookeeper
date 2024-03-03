@@ -9,11 +9,6 @@ import "watch.proto";
 /*
 Messages for establishing and keeping connections with Zookeeper.
 */
-message ConnectRequest {
-  // The UUID that represents the session.
-  // TODO: Replace this with a field saved as a header.
-  string client_id = 1;
-}
 
 message Heartbeat {
   // TODO: This is a placeholder value. Not sure if we even need anything.
@@ -119,31 +114,29 @@ message SyncResponse {}
 
 message ZookeeperRequest {
   oneof message {
-    // Connect establishes the connection and sets up recurring heartbeat messages to be sent from client -> server.
-    ConnectRequest connect = 1;
     // To prevent the session from timing out, the ZooKeeper client library sends a heartbeat after the session
     // has been idle for s/3 ms and switch to a new server if it has not heard from a server for 2s/3 ms,
     // where s is the session timeout in milliseconds.
-    Heartbeat heartbeat = 2;
+    Heartbeat heartbeat = 1;
     // Create creates a ZNode with path name path, stores data in it, and returns the name of the new ZNode
     // Flags can also be passed to pick certain attributes you want the ZNode to have.
-    CreateRequest create = 3;
+    CreateRequest create = 2;
     // Delete deletes the ZNode at the given path if that ZNode is at the expected version.
-    DeleteRequest delete = 4;
+    DeleteRequest delete = 3;
     // Exists returns true if the ZNode with path name path exists, and returns false otherwise. The watch flag
     // enables a client to set a watch on the ZNode.
-    ExistsRequest exists = 5;
+    ExistsRequest exists = 4;
     // GetData returns the data and metadata, such as version information, associated with the ZNode.
     // The watch flag works in the same way as it does for exists(), except that ZooKeeper does not set the watch
     // if the ZNode does not exist.
-    GetDataRequest get_data = 6;
+    GetDataRequest get_data = 5;
     // SetData writes data to the ZNode path if the version number is the current version of the ZNode.
-    SetDataRequest set_data = 7;
+    SetDataRequest set_data = 6;
     // GetChildren returns the set of names of the children of a ZNode.
-    GetChildrenRequest get_children = 8;
+    GetChildrenRequest get_children = 7;
     // Sync waits for all updates pending at the start of the operation to propagate to the server
     // that the client is connected to. The path is currently ignored. (Using path is not discussed in the white paper)
-    SyncRequest sync = 9;
+    SyncRequest sync = 8;
   }
 }
 

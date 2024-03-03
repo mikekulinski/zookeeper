@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
+	"time"
 
 	zkc "github.com/mikekulinski/zookeeper/pkg/client"
 	pbzk "github.com/mikekulinski/zookeeper/proto"
@@ -18,29 +20,55 @@ func main() {
 	if err != nil {
 		log.Fatal("dialing:", err)
 	}
-	defer func() {
-		err := client.Close()
-		if err != nil {
-			log.Fatal("error closing client:", err)
-		}
-	}()
 
 	fmt.Println("Connected to Zookeeper")
 
-	cResp, err := client.Create(context.TODO(), &pbzk.CreateRequest{
-		Path: "/zoo",
-		Data: []byte("Secrets hahahahaha!!"),
-	})
-	if err != nil {
-		log.Fatal("Error creating znode: ", err)
+	requests := []*pbzk.ZookeeperRequest{
+		{
+			Message: &pbzk.ZookeeperRequest_Create{
+				Create: &pbzk.CreateRequest{
+					Path: "/zoo",
+					Data: []byte("Secrets hahahahaha!!"),
+				},
+			},
+		},
+		{
+			Message: &pbzk.ZookeeperRequest_GetData{
+				GetData: &pbzk.GetDataRequest{
+					Path: "/zoo",
+				},
+			},
+		},
 	}
-	fmt.Println(cResp)
 
-	gResp, err := client.GetData(context.TODO(), &pbzk.GetDataRequest{
-		Path: "/zoo",
-	})
+	stream, err := client.Message(context.Background())
 	if err != nil {
-		log.Fatal("Error getting data:", err)
+		log.Fatal("error initializing the stream with the server")
 	}
-	fmt.Printf("%s", gResp.GetData())
+	waitc := make(chan struct{})
+	go func() {
+		for {
+			resp, err := stream.Recv()
+			if err == io.EOF {
+				// read done.
+				close(waitc)
+				return
+			}
+			if err != nil {
+				log.Fatalf("Failed to receive a message : %v", err)
+			}
+			fmt.Println(resp)
+		}
+	}()
+	for _, request := range requests {
+		if err := stream.Send(request); err != nil {
+			log.Fatalf("Failed to send a note: %v", err)
+		}
+		time.Sleep(1 * time.Second)
+	}
+	err = stream.CloseSend()
+	if err != nil {
+		log.Fatal("failed to close the stream")
+	}
+	<-waitc
 }
