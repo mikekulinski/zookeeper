@@ -32,9 +32,24 @@ func main() {
 			},
 		},
 		{
+			Message: &pbzk.ZookeeperRequest_Create{
+				Create: &pbzk.CreateRequest{
+					Path: "/zoo/giraffe",
+					Data: []byte("More secrets"),
+				},
+			},
+		},
+		{
 			Message: &pbzk.ZookeeperRequest_GetData{
 				GetData: &pbzk.GetDataRequest{
 					Path: "/zoo",
+				},
+			},
+		},
+		{
+			Message: &pbzk.ZookeeperRequest_GetData{
+				GetData: &pbzk.GetDataRequest{
+					Path: "/zoo/giraffe",
 				},
 			},
 		},

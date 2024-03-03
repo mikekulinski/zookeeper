@@ -1,6 +1,8 @@
 package session
 
-import pbzk "github.com/mikekulinski/zookeeper/proto"
+import (
+	pbzk "github.com/mikekulinski/zookeeper/proto"
+)
 
 type Session struct {
 	// Messages is a channel of events that the server needs to process.
