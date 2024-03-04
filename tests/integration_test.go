@@ -45,7 +45,7 @@ func (i *integrationTestSuite) SetupTest() {
 	i.Server = s
 }
 
-func (i *integrationTestSuite) TearDownSuite() {
+func (i *integrationTestSuite) TearDownTest() {
 	i.Server.GracefulStop()
 }
 
