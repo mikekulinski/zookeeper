@@ -638,3 +638,128 @@ func TestServer_NewFullName(t *testing.T) {
 		})
 	}
 }
+
+func TestServer_ExtractWatches(t *testing.T) {
+	tests := []struct {
+		name               string
+		checkingWatchType  pbzk.WatchEvent_EventType
+		clientIDsExtracted []string
+		clientIDsLeft      []string
+	}{
+		{
+			name:               "created",
+			checkingWatchType:  pbzk.WatchEvent_EVENT_TYPE_ZNODE_CREATED,
+			clientIDsExtracted: []string{"created", "all"},
+			clientIDsLeft:      []string{"deleted", "data changed", "children changed"},
+		},
+		{
+			name:               "deleted",
+			checkingWatchType:  pbzk.WatchEvent_EVENT_TYPE_ZNODE_DELETED,
+			clientIDsExtracted: []string{"deleted", "all"},
+			clientIDsLeft:      []string{"created", "data changed", "children changed"},
+		},
+		{
+			name:               "data changed",
+			checkingWatchType:  pbzk.WatchEvent_EVENT_TYPE_ZNODE_DATA_CHANGED,
+			clientIDsExtracted: []string{"data changed", "all"},
+			clientIDsLeft:      []string{"created", "deleted", "children changed"},
+		},
+		{
+			name:               "children changed",
+			checkingWatchType:  pbzk.WatchEvent_EVENT_TYPE_ZNODE_CHILDREN_CHANGED,
+			clientIDsExtracted: []string{"children changed", "all"},
+			clientIDsLeft:      []string{"created", "deleted", "data changed"},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			s := NewServer()
+			s.watches = map[string][]*znode.Watch{
+				"/zoo": {
+					{
+						ClientID: "created",
+						Path:     "/zoo",
+						WatchTypes: []pbzk.WatchEvent_EventType{
+							pbzk.WatchEvent_EVENT_TYPE_ZNODE_CREATED,
+						},
+					},
+					{
+						ClientID: "deleted",
+						Path:     "/zoo",
+						WatchTypes: []pbzk.WatchEvent_EventType{
+							pbzk.WatchEvent_EVENT_TYPE_ZNODE_DELETED,
+						},
+					},
+					{
+						ClientID: "data changed",
+						Path:     "/zoo",
+						WatchTypes: []pbzk.WatchEvent_EventType{
+							pbzk.WatchEvent_EVENT_TYPE_ZNODE_DATA_CHANGED,
+						},
+					},
+					{
+						ClientID: "children changed",
+						Path:     "/zoo",
+						WatchTypes: []pbzk.WatchEvent_EventType{
+							pbzk.WatchEvent_EVENT_TYPE_ZNODE_CHILDREN_CHANGED,
+						},
+					},
+					{
+						ClientID: "all",
+						Path:     "/zoo",
+						WatchTypes: []pbzk.WatchEvent_EventType{
+							pbzk.WatchEvent_EVENT_TYPE_ZNODE_CREATED,
+							pbzk.WatchEvent_EVENT_TYPE_ZNODE_DELETED,
+							pbzk.WatchEvent_EVENT_TYPE_ZNODE_DATA_CHANGED,
+							pbzk.WatchEvent_EVENT_TYPE_ZNODE_CHILDREN_CHANGED,
+						},
+					},
+				},
+			}
+
+			extractedWatches := s.extractWatches("/zoo", test.checkingWatchType)
+
+			var actualExtractedClientIDs []string
+			for _, w := range extractedWatches {
+				actualExtractedClientIDs = append(actualExtractedClientIDs, w.ClientID)
+			}
+			var actualClientIDsLeft []string
+			for _, w := range s.watches["/zoo"] {
+				fmt.Println(w)
+				actualClientIDsLeft = append(actualClientIDsLeft, w.ClientID)
+			}
+			assert.Equal(t, test.clientIDsExtracted, actualExtractedClientIDs)
+			assert.Equal(t, test.clientIDsLeft, actualClientIDsLeft)
+		})
+	}
+}
+
+func TestServer_GetParent(t *testing.T) {
+	tests := []struct {
+		name       string
+		path       string
+		parentPath string
+	}{
+		{
+			name:       "empty path",
+			path:       "",
+			parentPath: "",
+		},
+		{
+			name:       "no parent",
+			path:       "/zoo",
+			parentPath: "",
+		},
+		{
+			name:       "has parent",
+			path:       "/zoo/giraffe",
+			parentPath: "/zoo",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			actualParent := getParent(test.path)
+			assert.Equal(t, test.parentPath, actualParent)
+		})
+	}
+}
