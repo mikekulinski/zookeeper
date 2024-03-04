@@ -168,5 +168,8 @@ func sendAllRequests(ctx context.Context, client *zkc.Client, requests []*pbzk.Z
 }
 
 func TestIntegrationTestSuite(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	suite.Run(t, new(integrationTestSuite))
 }
