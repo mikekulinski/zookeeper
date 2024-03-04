@@ -17,21 +17,24 @@ type Server struct {
 	pbzk.UnimplementedZookeeperServer
 
 	root *znode.ZNode
-	// Sessions is a map of ClientID to session for all the clients
+	// sessions is a map of ClientID to session for all the clients
 	// that are currently connected to Zookeeper.
 	sessions map[string]*session.Session
+	// watches is a mapping of ZNode path to information about the type of watches on that node.
+	watches map[string][]*znode.Watch
 }
 
 func NewServer() *Server {
 	return &Server{
 		root:     znode.NewZNode("", -1, znode.ZNodeType_STANDARD, nil),
 		sessions: map[string]*session.Session{},
+		watches:  map[string][]*znode.Watch{},
 	}
 }
 
 // Create creates a ZNode with path name path, stores data in it, and returns the name of the new ZNode
 // Flags can also be passed to pick certain attributes you want the ZNode to have.
-func (s *Server) Create(_ context.Context, req *pbzk.CreateRequest) (*pbzk.CreateResponse, error) {
+func (s *Server) Create(ctx context.Context, req *pbzk.CreateRequest) (*pbzk.CreateResponse, error) {
 	err := validatePath(req.GetPath())
 	if err != nil {
 		return nil, err
@@ -70,16 +73,25 @@ func (s *Server) Create(_ context.Context, req *pbzk.CreateRequest) (*pbzk.Creat
 	parent.Children[newName] = newNode
 	// Make sure to increment the counter so the next sequential node will have the next number.
 	parent.NextSequentialNode++
-	// Set the response and return.
 
+	fullName := newFullName(newName, names[:len(names)-1])
+	s.triggerWatches(fullName, pbzk.WatchEvent_EVENT_TYPE_ZNODE_CREATED)
 	resp := &pbzk.CreateResponse{
-		ZNodeName: newName,
+		ZNodeName: fullName,
 	}
 	return resp, nil
 }
 
+func newFullName(nodeName string, ancestorsNames []string) string {
+	nodePath := "/" + nodeName
+	if len(ancestorsNames) > 0 {
+		return "/" + strings.Join(ancestorsNames, "/") + nodePath
+	}
+	return nodePath
+}
+
 // Delete deletes the ZNode at the given path if that ZNode is at the expected version.
-func (s *Server) Delete(_ context.Context, req *pbzk.DeleteRequest) (*pbzk.DeleteResponse, error) {
+func (s *Server) Delete(ctx context.Context, req *pbzk.DeleteRequest) (*pbzk.DeleteResponse, error) {
 	err := validatePath(req.GetPath())
 	if err != nil {
 		return nil, err
@@ -105,13 +117,13 @@ func (s *Server) Delete(_ context.Context, req *pbzk.DeleteRequest) (*pbzk.Delet
 		return nil, fmt.Errorf("the node specified has children. Only leaf nodes can be deleted")
 	}
 	delete(parent.Children, nameToDelete)
-
+	s.triggerWatches(req.GetPath(), pbzk.WatchEvent_EVENT_TYPE_ZNODE_DELETED)
 	return &pbzk.DeleteResponse{}, nil
 }
 
 // Exists returns true if the ZNode with path name path exists, and returns false otherwise. The watch flag
 // enables a client to set a watch on the ZNode.
-func (s *Server) Exists(_ context.Context, req *pbzk.ExistsRequest) (*pbzk.ExistsResponse, error) {
+func (s *Server) Exists(ctx context.Context, req *pbzk.ExistsRequest) (*pbzk.ExistsResponse, error) {
 	err := validatePath(req.GetPath())
 	if err != nil {
 		return nil, err
@@ -119,7 +131,22 @@ func (s *Server) Exists(_ context.Context, req *pbzk.ExistsRequest) (*pbzk.Exist
 	names := splitPathIntoNodeNames(req.GetPath())
 
 	node := findZNode(s.root, names)
-	// TODO: Implement watching mechanism.
+
+	// If the client wants to watch for changes on this node, then add it to our map of watches.
+	if req.GetWatch() {
+		clientID, _ := ExtractClientIDHeader(ctx)
+		w := &znode.Watch{
+			ClientID: clientID,
+			Path:     req.GetPath(),
+			// Exists calls watch for creates, updates, or deletes to the node specified.
+			WatchTypes: []pbzk.WatchEvent_EventType{
+				pbzk.WatchEvent_EVENT_TYPE_ZNODE_CREATED,
+				pbzk.WatchEvent_EVENT_TYPE_ZNODE_DATA_CHANGED,
+				pbzk.WatchEvent_EVENT_TYPE_ZNODE_DELETED,
+			},
+		}
+		s.watches[req.GetPath()] = append(s.watches[req.GetPath()], w)
+	}
 	return &pbzk.ExistsResponse{
 		Exists: node != nil,
 	}, nil
@@ -128,7 +155,7 @@ func (s *Server) Exists(_ context.Context, req *pbzk.ExistsRequest) (*pbzk.Exist
 // GetData returns the data and metadata, such as version information, associated with the ZNode.
 // The watch flag works in the same way as it does for exists(), except that ZooKeeper does not set the watch
 // if the ZNode does not exist.
-func (s *Server) GetData(_ context.Context, req *pbzk.GetDataRequest) (*pbzk.GetDataResponse, error) {
+func (s *Server) GetData(ctx context.Context, req *pbzk.GetDataRequest) (*pbzk.GetDataResponse, error) {
 	err := validatePath(req.GetPath())
 	if err != nil {
 		return nil, err
@@ -139,7 +166,21 @@ func (s *Server) GetData(_ context.Context, req *pbzk.GetDataRequest) (*pbzk.Get
 	if node == nil {
 		return &pbzk.GetDataResponse{}, nil
 	}
-	// TODO: Implement watching mechanism.
+
+	// If the client wants to watch for changes on this node, then add it to our map of watches.
+	if req.GetWatch() {
+		clientID, _ := ExtractClientIDHeader(ctx)
+		w := &znode.Watch{
+			ClientID: clientID,
+			Path:     req.GetPath(),
+			// GetData calls watch for updates or deletes to the node specified.
+			WatchTypes: []pbzk.WatchEvent_EventType{
+				pbzk.WatchEvent_EVENT_TYPE_ZNODE_DATA_CHANGED,
+				pbzk.WatchEvent_EVENT_TYPE_ZNODE_DELETED,
+			},
+		}
+		s.watches[req.GetPath()] = append(s.watches[req.GetPath()], w)
+	}
 	return &pbzk.GetDataResponse{
 		Data:    node.Data,
 		Version: node.Version,
@@ -147,7 +188,7 @@ func (s *Server) GetData(_ context.Context, req *pbzk.GetDataRequest) (*pbzk.Get
 }
 
 // SetData writes data to the ZNode path if the version number is the current version of the ZNode.
-func (s *Server) SetData(_ context.Context, req *pbzk.SetDataRequest) (*pbzk.SetDataResponse, error) {
+func (s *Server) SetData(ctx context.Context, req *pbzk.SetDataRequest) (*pbzk.SetDataResponse, error) {
 	err := validatePath(req.GetPath())
 	if err != nil {
 		return nil, err
@@ -163,11 +204,12 @@ func (s *Server) SetData(_ context.Context, req *pbzk.SetDataRequest) (*pbzk.Set
 	}
 	node.Data = req.GetData()
 	node.Version++
+	s.triggerWatches(req.GetPath(), pbzk.WatchEvent_EVENT_TYPE_ZNODE_DATA_CHANGED)
 	return &pbzk.SetDataResponse{}, nil
 }
 
 // GetChildren returns the set of names of the children of a ZNode.
-func (s *Server) GetChildren(_ context.Context, req *pbzk.GetChildrenRequest) (*pbzk.GetChildrenResponse, error) {
+func (s *Server) GetChildren(ctx context.Context, req *pbzk.GetChildrenRequest) (*pbzk.GetChildrenResponse, error) {
 	err := validatePath(req.GetPath())
 	if err != nil {
 		return nil, err
@@ -184,7 +226,22 @@ func (s *Server) GetChildren(_ context.Context, req *pbzk.GetChildrenRequest) (*
 	for name := range node.Children {
 		childrenNames = append(childrenNames, name)
 	}
-	// TODO: Implement watching mechanism.
+
+	// If the client wants to watch for changes on this node, then add it to our map of watches.
+	if req.GetWatch() {
+		clientID, _ := ExtractClientIDHeader(ctx)
+		w := &znode.Watch{
+			ClientID: clientID,
+			Path:     req.GetPath(),
+			// GetChildren calls only watch for children update events.
+			WatchTypes: []pbzk.WatchEvent_EventType{
+				pbzk.WatchEvent_EVENT_TYPE_ZNODE_CHILDREN_CHANGED,
+				// We also watch for delete events to this node since deletes mean we won't have any more children.
+				pbzk.WatchEvent_EVENT_TYPE_ZNODE_DELETED,
+			},
+		}
+		s.watches[req.GetPath()] = append(s.watches[req.GetPath()], w)
+	}
 	return &pbzk.GetChildrenResponse{
 		Children: childrenNames,
 	}, nil
@@ -213,4 +270,64 @@ func findZNode(start *znode.ZNode, names []string) *znode.ZNode {
 		node = z
 	}
 	return node
+}
+
+// triggerWatches will notify all clients that are watching for events for that node.
+func (s *Server) triggerWatches(path string, watchType pbzk.WatchEvent_EventType) {
+	watchesToTrigger := s.extractWatches(path, watchType)
+
+	// For create/delete events, check if this triggered any child watches in the parent.
+	var childWatchesToTrigger []*znode.Watch
+	if watchType == pbzk.WatchEvent_EVENT_TYPE_ZNODE_CREATED ||
+		watchType == pbzk.WatchEvent_EVENT_TYPE_ZNODE_DELETED {
+		parentPath := getParent(path)
+		childWatchesToTrigger = s.extractWatches(parentPath, pbzk.WatchEvent_EVENT_TYPE_ZNODE_CHILDREN_CHANGED)
+	}
+
+	// Actually trigger the watches.
+	s.triggerEachWatch(watchesToTrigger, watchType)
+	s.triggerEachWatch(childWatchesToTrigger, pbzk.WatchEvent_EVENT_TYPE_ZNODE_CHILDREN_CHANGED)
+}
+
+func (s *Server) extractWatches(path string, watchType pbzk.WatchEvent_EventType) []*znode.Watch {
+	var watchesToTrigger []*znode.Watch
+	var clientIDsToRemove []string
+	for _, watch := range s.watches[path] {
+		if slices.Contains(watch.WatchTypes, watchType) {
+			watchesToTrigger = append(watchesToTrigger, watch)
+			clientIDsToRemove = append(clientIDsToRemove, watch.ClientID)
+		}
+	}
+	for _, id := range clientIDsToRemove {
+		s.watches[path] = slices.DeleteFunc(s.watches[path], func(watch *znode.Watch) bool {
+			return watch.ClientID == id
+		})
+	}
+	return watchesToTrigger
+}
+
+func (s *Server) triggerEachWatch(watches []*znode.Watch, watchType pbzk.WatchEvent_EventType) {
+	for _, w := range watches {
+		// No need to capture loop var since we're using Go 1.22.
+		// Trigger each watch in a separate goroutine since adding to the messages channel is blocking.
+		go func() {
+			if sess, ok := s.sessions[w.ClientID]; ok {
+				event := &session.Event{
+					WatchEvent: &pbzk.WatchEvent{
+						Type: watchType,
+					},
+				}
+				sess.Messages <- event
+			}
+		}()
+	}
+}
+
+func getParent(path string) string {
+	i := strings.LastIndex(path, "/")
+	if i < 0 {
+		return ""
+	}
+	parentPath := path[:i]
+	return parentPath
 }

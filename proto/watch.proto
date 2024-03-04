@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package zookeeper;
+
+option go_package = "github.com/mikekulinski/zookeeper/proto/zookeeper";
+
+message WatchEvent {
+  enum EventType {
+    EVENT_TYPE_UNSET = 0;
+    EVENT_TYPE_ZNODE_CREATED = 1;
+    EVENT_TYPE_ZNODE_DELETED = 2;
+    EVENT_TYPE_ZNODE_DATA_CHANGED = 3;
+    EVENT_TYPE_ZNODE_CHILDREN_CHANGED = 4;
+  }
+  EventType type = 1;
+}

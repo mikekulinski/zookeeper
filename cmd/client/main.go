@@ -2,8 +2,9 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"io"
 	"log"
+	"time"
 
 	zkc "github.com/mikekulinski/zookeeper/pkg/client"
 	pbzk "github.com/mikekulinski/zookeeper/proto"
@@ -18,29 +19,70 @@ func main() {
 	if err != nil {
 		log.Fatal("dialing:", err)
 	}
-	defer func() {
-		err := client.Close()
-		if err != nil {
-			log.Fatal("error closing client:", err)
+
+	log.Println("Connected to Zookeeper")
+
+	requests := []*pbzk.ZookeeperRequest{
+		{
+			Message: &pbzk.ZookeeperRequest_Create{
+				Create: &pbzk.CreateRequest{
+					Path: "/zoo",
+					Data: []byte("Secrets hahahahaha!!"),
+				},
+			},
+		},
+		{
+			Message: &pbzk.ZookeeperRequest_Create{
+				Create: &pbzk.CreateRequest{
+					Path: "/zoo/giraffe",
+					Data: []byte("More secrets"),
+				},
+			},
+		},
+		{
+			Message: &pbzk.ZookeeperRequest_GetData{
+				GetData: &pbzk.GetDataRequest{
+					Path: "/zoo",
+				},
+			},
+		},
+		{
+			Message: &pbzk.ZookeeperRequest_GetData{
+				GetData: &pbzk.GetDataRequest{
+					Path: "/zoo/giraffe",
+				},
+			},
+		},
+	}
+
+	stream, err := client.Message(context.Background())
+	if err != nil {
+		log.Fatal("error initializing the stream with the server")
+	}
+	waitc := make(chan struct{})
+	go func() {
+		for {
+			resp, err := stream.Recv()
+			if err == io.EOF {
+				// read done.
+				close(waitc)
+				return
+			}
+			if err != nil {
+				log.Fatalf("Failed to receive a message : %v", err)
+			}
+			log.Println(resp)
 		}
 	}()
-
-	fmt.Println("Connected to Zookeeper")
-
-	cResp, err := client.Create(context.TODO(), &pbzk.CreateRequest{
-		Path: "/zoo",
-		Data: []byte("Secrets hahahahaha!!"),
-	})
-	if err != nil {
-		log.Fatal("Error creating znode: ", err)
+	for _, request := range requests {
+		if err := stream.Send(request); err != nil {
+			log.Fatalf("Failed to send a note: %v", err)
+		}
+		time.Sleep(1 * time.Second)
 	}
-	fmt.Println(cResp)
-
-	gResp, err := client.GetData(context.TODO(), &pbzk.GetDataRequest{
-		Path: "/zoo",
-	})
+	err = stream.CloseSend()
 	if err != nil {
-		log.Fatal("Error getting data:", err)
+		log.Fatal("failed to close the stream")
 	}
-	fmt.Printf("%s", gResp.GetData())
+	<-waitc
 }
