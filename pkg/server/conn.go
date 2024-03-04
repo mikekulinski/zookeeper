@@ -117,7 +117,16 @@ func (s *Server) handleClientRequest(req *pbzk.ZookeeperRequest, stream pbzk.Zoo
 }
 
 func (s *Server) handleWatchEvent(event *pbzk.WatchEvent, stream pbzk.Zookeeper_MessageServer) error {
-	// TODO
+	resp := &pbzk.ZookeeperResponse{
+		Message: &pbzk.ZookeeperResponse_WatchEvent{
+			WatchEvent: event,
+		},
+	}
+
+	err := stream.Send(resp)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

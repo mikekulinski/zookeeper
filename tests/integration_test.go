@@ -167,6 +167,93 @@ func sendAllRequests(ctx context.Context, client *zkc.Client, requests []*pbzk.Z
 	return responses, nil
 }
 
+func (i *integrationTestSuite) TestWatchEvents() {
+	ctx := context.Background()
+
+	client, err := zkc.NewClient(serverAddress)
+	i.Require().NoError(err)
+
+	requests := []*pbzk.ZookeeperRequest{
+		{
+			Message: &pbzk.ZookeeperRequest_Create{
+				Create: &pbzk.CreateRequest{
+					Path: "/zoo",
+					Data: []byte("Secrets hahahahaha!!"),
+				},
+			},
+		},
+		{
+			Message: &pbzk.ZookeeperRequest_GetData{
+				GetData: &pbzk.GetDataRequest{
+					Path:  "/zoo",
+					Watch: true,
+				},
+			},
+		},
+		{
+			Message: &pbzk.ZookeeperRequest_SetData{
+				SetData: &pbzk.SetDataRequest{
+					Path: "/zoo",
+					Data: []byte("This one is better"),
+				},
+			},
+		},
+		{
+			Message: &pbzk.ZookeeperRequest_GetData{
+				GetData: &pbzk.GetDataRequest{
+					Path: "/zoo",
+				},
+			},
+		},
+	}
+	expectedResponses := []*pbzk.ZookeeperResponse{
+		{
+			Message: &pbzk.ZookeeperResponse_Create{
+				Create: &pbzk.CreateResponse{
+					ZNodeName: "/zoo",
+				},
+			},
+		},
+		{
+			Message: &pbzk.ZookeeperResponse_GetData{
+				GetData: &pbzk.GetDataResponse{
+					Data:    []byte("Secrets hahahahaha!!"),
+					Version: 0,
+				},
+			},
+		},
+		{
+			Message: &pbzk.ZookeeperResponse_SetData{
+				SetData: &pbzk.SetDataResponse{},
+			},
+		},
+		{
+			Message: &pbzk.ZookeeperResponse_WatchEvent{
+				WatchEvent: &pbzk.WatchEvent{
+					Type: pbzk.WatchEvent_EVENT_TYPE_ZNODE_DATA_CHANGED,
+				},
+			},
+		},
+		{
+			Message: &pbzk.ZookeeperResponse_GetData{
+				GetData: &pbzk.GetDataResponse{
+					Data:    []byte("This one is better"),
+					Version: 1,
+				},
+			},
+		},
+	}
+
+	responses, err := sendAllRequests(ctx, client, requests)
+	fmt.Println(responses)
+	i.Require().NoError(err)
+	for j := range expectedResponses {
+		expected := expectedResponses[j]
+		actual := responses[j]
+		i.True(proto.Equal(expected, actual))
+	}
+}
+
 func TestIntegrationTestSuite(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
