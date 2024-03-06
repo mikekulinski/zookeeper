@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"time"
@@ -59,6 +60,7 @@ func NewClient(ctx context.Context, endpoint string) (*Client, error) {
 		stream:          stream,
 		out:             make(chan *pbzk.ZookeeperRequest),
 		in:              make(chan *pbzk.ZookeeperResponse),
+		responses:       make(chan *pbzk.ZookeeperResponse),
 	}
 	go c.continuouslySendMessages()
 	go c.continuouslyReceiveMessages()
@@ -68,7 +70,7 @@ func NewClient(ctx context.Context, endpoint string) (*Client, error) {
 
 func (c *Client) Send(request *pbzk.ZookeeperRequest) error {
 	c.out <- request
-	return c.stream.Send(request)
+	return nil
 }
 
 func (c *Client) Recv() (*pbzk.ZookeeperResponse, error) {
@@ -83,10 +85,11 @@ func (c *Client) Recv() (*pbzk.ZookeeperResponse, error) {
 func (c *Client) Close() error {
 	err := c.stream.CloseSend()
 	if err != nil {
-		return err
+		return fmt.Errorf("error closing send: %w", err)
 	}
 
-	// Close the outgoing channel so we will stop our long running goroutines.
+	// Close the outgoing channel, so we will stop our long running goroutines.
+	close(c.out)
 	return nil
 }
 
@@ -110,7 +113,10 @@ func clientIDStreamInterceptor(clientID string) grpc.StreamClientInterceptor {
 func (c *Client) continuouslySendMessages() {
 	for {
 		select {
-		case m := <-c.out:
+		case m, ok := <-c.out:
+			if !ok {
+				return
+			}
 			// The client elected to send a message. Send that to the server.
 			err := c.stream.Send(m)
 			if err != nil {
@@ -135,7 +141,7 @@ func (c *Client) continuouslySendMessages() {
 	}
 }
 
-func (c *Client) continuouslyReceiveMessages() {
+func (c *Client) continuouslyReturnMessagesToClient() {
 	defer close(c.responses)
 	for {
 		select {
@@ -155,12 +161,11 @@ func (c *Client) continuouslyReceiveMessages() {
 	}
 }
 
-func (c *Client) continuouslyReturnMessagesToClient() {
+func (c *Client) continuouslyReceiveMessages() {
 	defer close(c.in)
 	for {
 		resp, err := c.stream.Recv()
 		if errors.Is(err, io.EOF) {
-			log.Println("Server closed the stream")
 			return
 		}
 		if err != nil {

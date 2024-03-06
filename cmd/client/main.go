@@ -60,6 +60,7 @@ func main() {
 	waitc := make(chan struct{})
 	go func() {
 		for {
+			log.Println("Trying to read from client")
 			resp, err := client.Recv()
 			if err == io.EOF {
 				// read done.
@@ -74,7 +75,7 @@ func main() {
 	}()
 	for _, request := range requests {
 		if err := client.Send(request); err != nil {
-			log.Fatalf("Failed to send a note: %v", err)
+			log.Fatalf("Failed to send the request: %v", err)
 		}
 		time.Sleep(1 * time.Second)
 	}

@@ -150,16 +150,16 @@ func sendAllRequests(client *zkc.Client, requests []*pbzk.ZookeeperRequest) ([]*
 	}()
 	for _, request := range requests {
 		if err := client.Send(request); err != nil {
-			log.Fatalf("Failed to send a note: %v", err)
+			log.Fatalf("Failed to send a request: %v", err)
 		}
-		log.Println("Send request to server")
-		time.Sleep(1 * time.Second)
+		time.Sleep(200 * time.Millisecond)
 	}
 	err := client.Close()
 	if err != nil {
 		log.Fatal("failed to close the stream")
 	}
 	<-waitc
+	log.Println("Got here")
 	return responses, nil
 }
 

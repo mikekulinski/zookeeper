@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -12,8 +13,9 @@ import (
 )
 
 func (s *Server) Message(stream pbzk.Zookeeper_MessageServer) error {
+	ctx := stream.Context()
 	// Extract the clientID from the message headers.
-	clientID, ok := ExtractClientIDHeader(stream.Context())
+	clientID, ok := ExtractClientIDHeader(ctx)
 	if !ok {
 		return fmt.Errorf("missing ClientID in the headers")
 	}
@@ -30,20 +32,24 @@ func (s *Server) Message(stream pbzk.Zookeeper_MessageServer) error {
 	for {
 		select {
 		case m := <-sess.Messages:
+			var resp *pbzk.ZookeeperResponse
 			if m.ClientRequest != nil {
-				err := s.handleClientRequest(m.ClientRequest, stream)
+				var err error
+				resp, err = s.handleClientRequest(ctx, m.ClientRequest)
 				if err != nil {
 					return err
 				}
 			} else if m.WatchEvent != nil {
-				err := s.handleWatchEvent(m.WatchEvent, stream)
-				if err != nil {
-					return err
-				}
+				resp = s.handleWatchEvent(m.WatchEvent)
 			} else if m.EOF {
 				// There are no more messages so safely close the connection.
-				log.Println("Received EOF from messages channel")
 				return nil
+			}
+
+			// Send the response back to the client.
+			err = stream.Send(resp)
+			if err != nil {
+				return err
 			}
 		case <-time.After(10 * time.Second):
 			return fmt.Errorf("timed out waiting for message to process")
@@ -51,9 +57,7 @@ func (s *Server) Message(stream pbzk.Zookeeper_MessageServer) error {
 	}
 }
 
-func (s *Server) handleClientRequest(req *pbzk.ZookeeperRequest, stream pbzk.Zookeeper_MessageServer) error {
-	ctx := stream.Context()
-
+func (s *Server) handleClientRequest(ctx context.Context, req *pbzk.ZookeeperRequest) (*pbzk.ZookeeperResponse, error) {
 	mainResponse := &pbzk.ZookeeperResponse{}
 	var err error
 	switch m := req.GetMessage().(type) {
@@ -106,32 +110,21 @@ func (s *Server) handleClientRequest(req *pbzk.ZookeeperRequest, stream pbzk.Zoo
 			Sync: resp,
 		}
 	default:
-		return fmt.Errorf("invalid message format: %+v", m)
+		return nil, fmt.Errorf("invalid message format: %+v", m)
 	}
 
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("error handling client request: %w", err)
 	}
-
-	err = stream.Send(mainResponse)
-	if err != nil {
-		return err
-	}
-	return nil
+	return mainResponse, nil
 }
 
-func (s *Server) handleWatchEvent(event *pbzk.WatchEvent, stream pbzk.Zookeeper_MessageServer) error {
-	resp := &pbzk.ZookeeperResponse{
+func (s *Server) handleWatchEvent(event *pbzk.WatchEvent) *pbzk.ZookeeperResponse {
+	return &pbzk.ZookeeperResponse{
 		Message: &pbzk.ZookeeperResponse_WatchEvent{
 			WatchEvent: event,
 		},
 	}
-
-	err := stream.Send(resp)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (s *Server) Heartbeat(_ *pbzk.HeartbeatRequest) (*pbzk.HeartbeatResponse, error) {
@@ -165,7 +158,6 @@ func (s *Server) continuouslyReceiveMessages(sess *session.Session, stream pbzk.
 	for {
 		req, err := stream.Recv()
 		if errors.Is(err, io.EOF) {
-			log.Println("Client closed the stream")
 			return
 		}
 		if err != nil {
