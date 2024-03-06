@@ -67,6 +67,7 @@ func (s *Server) handleClientRequest(ctx context.Context, req *pbzk.ZookeeperReq
 		mainResponse.Message = &pbzk.ZookeeperResponse_Heartbeat{
 			Heartbeat: resp,
 		}
+		log.Println("Sending heartbeat response")
 	case *pbzk.ZookeeperRequest_Create:
 		var resp *pbzk.CreateResponse
 		resp, err = s.Create(ctx, m.Create)

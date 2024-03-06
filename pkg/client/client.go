@@ -137,6 +137,7 @@ func (c *Client) continuouslySendMessages() {
 				log.Printf("Error sending heartbeat to the client stream: %+v\n", err)
 				return
 			}
+			log.Println("Sent heartbeat")
 		}
 	}
 }
@@ -150,8 +151,15 @@ func (c *Client) continuouslyReturnMessagesToClient() {
 			if !ok {
 				return
 			}
-			// Enqueue the response to be sent back to the client.
-			c.responses <- resp
+
+			switch resp.GetMessage().(type) {
+			case *pbzk.ZookeeperResponse_Heartbeat:
+				// Do nothing for heartbeat responses.
+				continue
+			default:
+				// Enqueue the response to be sent back to the client.
+				c.responses <- resp
+			}
 		case <-time.After(IdleTimeout):
 			// We timed out waiting for the server to respond.
 			// TODO: Find a new server once the server is distributed.
@@ -172,13 +180,6 @@ func (c *Client) continuouslyReceiveMessages() {
 			log.Printf("Error receiving message from client stream: %+v\n", err)
 			return
 		}
-
-		switch resp.GetMessage().(type) {
-		case *pbzk.ZookeeperResponse_Heartbeat:
-			// Do nothing for heartbeat responses.
-			continue
-		default:
-			c.in <- resp
-		}
+		c.in <- resp
 	}
 }

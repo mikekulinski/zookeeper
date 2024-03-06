@@ -120,7 +120,7 @@ func (i *integrationTestSuite) TestCreateThenGetData() {
 		},
 	}
 
-	responses, err := sendAllRequests(client, requests)
+	responses, err := sendAllRequests(client, requests, 200*time.Millisecond)
 	fmt.Println(responses)
 	i.Require().NoError(err)
 	for j := range expectedResponses {
@@ -128,39 +128,6 @@ func (i *integrationTestSuite) TestCreateThenGetData() {
 		actual := responses[j]
 		i.True(proto.Equal(expected, actual))
 	}
-}
-
-func sendAllRequests(client *zkc.Client, requests []*pbzk.ZookeeperRequest) ([]*pbzk.ZookeeperResponse, error) {
-	waitc := make(chan struct{})
-	var responses []*pbzk.ZookeeperResponse
-	go func() {
-		for {
-			resp, err := client.Recv()
-			if err == io.EOF {
-				// read done.
-				close(waitc)
-				return
-			}
-			if err != nil {
-				log.Fatalf("Failed to receive a message : %v", err)
-				return
-			}
-			responses = append(responses, resp)
-		}
-	}()
-	for _, request := range requests {
-		if err := client.Send(request); err != nil {
-			log.Fatalf("Failed to send a request: %v", err)
-		}
-		time.Sleep(200 * time.Millisecond)
-	}
-	err := client.Close()
-	if err != nil {
-		log.Fatal("failed to close the stream")
-	}
-	<-waitc
-	log.Println("Got here")
-	return responses, nil
 }
 
 func (i *integrationTestSuite) TestWatchEvents() {
@@ -240,7 +207,7 @@ func (i *integrationTestSuite) TestWatchEvents() {
 		},
 	}
 
-	responses, err := sendAllRequests(client, requests)
+	responses, err := sendAllRequests(client, requests, 200*time.Millisecond)
 	fmt.Println(responses)
 	i.Require().NoError(err)
 	for j := range expectedResponses {
@@ -248,6 +215,92 @@ func (i *integrationTestSuite) TestWatchEvents() {
 		actual := responses[j]
 		i.True(proto.Equal(expected, actual))
 	}
+}
+
+func (i *integrationTestSuite) TestHeartbeat() {
+	ctx := context.Background()
+
+	client, err := zkc.NewClient(ctx, serverAddress)
+	i.Require().NoError(err)
+
+	requests := []*pbzk.ZookeeperRequest{
+		{
+			Message: &pbzk.ZookeeperRequest_Create{
+				Create: &pbzk.CreateRequest{
+					Path: "/zoo",
+					Data: []byte("Secrets hahahahaha!!"),
+				},
+			},
+		},
+		{
+			Message: &pbzk.ZookeeperRequest_GetData{
+				GetData: &pbzk.GetDataRequest{
+					Path:  "/zoo",
+					Watch: false,
+				},
+			},
+		},
+	}
+	expectedResponses := []*pbzk.ZookeeperResponse{
+		{
+			Message: &pbzk.ZookeeperResponse_Create{
+				Create: &pbzk.CreateResponse{
+					ZNodeName: "/zoo",
+				},
+			},
+		},
+		{
+			Message: &pbzk.ZookeeperResponse_GetData{
+				GetData: &pbzk.GetDataResponse{
+					Data:    []byte("Secrets hahahahaha!!"),
+					Version: 0,
+				},
+			},
+		},
+	}
+
+	// Wait longer than the idle timeout between requests to make sure we are properly
+	// using heartbeats to keep the connection alive.
+	responses, err := sendAllRequests(client, requests, 2*zkc.IdleTimeout)
+	fmt.Println(responses)
+	i.Require().NoError(err)
+	for j := range expectedResponses {
+		expected := expectedResponses[j]
+		actual := responses[j]
+		i.True(proto.Equal(expected, actual))
+	}
+}
+
+func sendAllRequests(client *zkc.Client, requests []*pbzk.ZookeeperRequest, interval time.Duration) ([]*pbzk.ZookeeperResponse, error) {
+	waitc := make(chan struct{})
+	var responses []*pbzk.ZookeeperResponse
+	go func() {
+		for {
+			resp, err := client.Recv()
+			if err == io.EOF {
+				// read done.
+				close(waitc)
+				return
+			}
+			if err != nil {
+				log.Fatalf("Failed to receive a message : %v", err)
+				return
+			}
+			responses = append(responses, resp)
+		}
+	}()
+	for _, request := range requests {
+		if err := client.Send(request); err != nil {
+			log.Fatalf("Failed to send a request: %v", err)
+		}
+		time.Sleep(interval)
+	}
+	err := client.Close()
+	if err != nil {
+		log.Fatal("failed to close the stream")
+	}
+	<-waitc
+	return responses, nil
 }
 
 func TestIntegrationTestSuite(t *testing.T) {
