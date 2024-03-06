@@ -15,10 +15,12 @@ const (
 )
 
 func main() {
-	client, err := zkc.NewClient(serverAddress)
+	ctx := context.Background()
+	client, err := zkc.NewClient(ctx, serverAddress)
 	if err != nil {
 		log.Fatal("dialing:", err)
 	}
+	defer client.Close()
 
 	log.Println("Connected to Zookeeper")
 
@@ -55,14 +57,10 @@ func main() {
 		},
 	}
 
-	stream, err := client.Message(context.Background())
-	if err != nil {
-		log.Fatal("error initializing the stream with the server")
-	}
 	waitc := make(chan struct{})
 	go func() {
 		for {
-			resp, err := stream.Recv()
+			resp, err := client.Recv()
 			if err == io.EOF {
 				// read done.
 				close(waitc)
@@ -75,12 +73,12 @@ func main() {
 		}
 	}()
 	for _, request := range requests {
-		if err := stream.Send(request); err != nil {
+		if err := client.Send(request); err != nil {
 			log.Fatalf("Failed to send a note: %v", err)
 		}
 		time.Sleep(1 * time.Second)
 	}
-	err = stream.CloseSend()
+	err = client.Close()
 	if err != nil {
 		log.Fatal("failed to close the stream")
 	}

@@ -52,7 +52,7 @@ func (i *integrationTestSuite) TearDownTest() {
 func (i *integrationTestSuite) TestCreateThenGetData() {
 	ctx := context.Background()
 
-	client, err := zkc.NewClient(serverAddress)
+	client, err := zkc.NewClient(ctx, serverAddress)
 	i.Require().NoError(err)
 
 	requests := []*pbzk.ZookeeperRequest{
@@ -120,7 +120,7 @@ func (i *integrationTestSuite) TestCreateThenGetData() {
 		},
 	}
 
-	responses, err := sendAllRequests(ctx, client, requests)
+	responses, err := sendAllRequests(client, requests)
 	fmt.Println(responses)
 	i.Require().NoError(err)
 	for j := range expectedResponses {
@@ -130,17 +130,12 @@ func (i *integrationTestSuite) TestCreateThenGetData() {
 	}
 }
 
-func sendAllRequests(ctx context.Context, client *zkc.Client, requests []*pbzk.ZookeeperRequest) ([]*pbzk.ZookeeperResponse, error) {
-	stream, err := client.Message(ctx)
-	if err != nil {
-		return nil, err
-	}
-
+func sendAllRequests(client *zkc.Client, requests []*pbzk.ZookeeperRequest) ([]*pbzk.ZookeeperResponse, error) {
 	waitc := make(chan struct{})
 	var responses []*pbzk.ZookeeperResponse
 	go func() {
 		for {
-			resp, err := stream.Recv()
+			resp, err := client.Recv()
 			if err == io.EOF {
 				// read done.
 				close(waitc)
@@ -154,12 +149,13 @@ func sendAllRequests(ctx context.Context, client *zkc.Client, requests []*pbzk.Z
 		}
 	}()
 	for _, request := range requests {
-		if err := stream.Send(request); err != nil {
+		if err := client.Send(request); err != nil {
 			log.Fatalf("Failed to send a note: %v", err)
 		}
+		log.Println("Send request to server")
 		time.Sleep(1 * time.Second)
 	}
-	err = stream.CloseSend()
+	err := client.Close()
 	if err != nil {
 		log.Fatal("failed to close the stream")
 	}
@@ -170,7 +166,7 @@ func sendAllRequests(ctx context.Context, client *zkc.Client, requests []*pbzk.Z
 func (i *integrationTestSuite) TestWatchEvents() {
 	ctx := context.Background()
 
-	client, err := zkc.NewClient(serverAddress)
+	client, err := zkc.NewClient(ctx, serverAddress)
 	i.Require().NoError(err)
 
 	requests := []*pbzk.ZookeeperRequest{
@@ -244,7 +240,7 @@ func (i *integrationTestSuite) TestWatchEvents() {
 		},
 	}
 
-	responses, err := sendAllRequests(ctx, client, requests)
+	responses, err := sendAllRequests(client, requests)
 	fmt.Println(responses)
 	i.Require().NoError(err)
 	for j := range expectedResponses {

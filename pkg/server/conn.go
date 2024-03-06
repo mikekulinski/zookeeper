@@ -58,7 +58,11 @@ func (s *Server) handleClientRequest(req *pbzk.ZookeeperRequest, stream pbzk.Zoo
 	var err error
 	switch m := req.GetMessage().(type) {
 	case *pbzk.ZookeeperRequest_Heartbeat:
-		err = s.Heartbeat(m.Heartbeat)
+		var resp *pbzk.HeartbeatResponse
+		resp, err = s.Heartbeat(m.Heartbeat)
+		mainResponse.Message = &pbzk.ZookeeperResponse_Heartbeat{
+			Heartbeat: resp,
+		}
 	case *pbzk.ZookeeperRequest_Create:
 		var resp *pbzk.CreateResponse
 		resp, err = s.Create(ctx, m.Create)
@@ -130,9 +134,11 @@ func (s *Server) handleWatchEvent(event *pbzk.WatchEvent, stream pbzk.Zookeeper_
 	return nil
 }
 
-func (s *Server) Heartbeat(_ *pbzk.Heartbeat) error {
+func (s *Server) Heartbeat(_ *pbzk.HeartbeatRequest) (*pbzk.HeartbeatResponse, error) {
 	// TODO: Implement some sort of timer reset here.
-	return nil
+	return &pbzk.HeartbeatResponse{
+		ReceivedTsMs: time.Now().UnixMilli(),
+	}, nil
 }
 
 func (s *Server) StartSession(clientID string) (*session.Session, error) {
@@ -163,7 +169,7 @@ func (s *Server) continuouslyReceiveMessages(sess *session.Session, stream pbzk.
 			return
 		}
 		if err != nil {
-			log.Println(err)
+			log.Printf("Error receiving message from server stream: %+v\n", err)
 			return
 		}
 		sess.Messages <- &session.Event{ClientRequest: req}
