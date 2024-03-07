@@ -49,6 +49,9 @@ type Client struct {
 	in chan *internalResponse
 	// Channel of the responses to return to the client.
 	responses chan *internalResponse
+	// Channel used during clean up to indicate that we have finished flushing all outgoing messages and
+	// we can safely call SendClose().
+	outboundFlushed chan bool
 }
 
 func NewClient(endpoint string) *Client {
@@ -70,6 +73,7 @@ func NewClient(endpoint string) *Client {
 		out:             make(chan *pbzk.ZookeeperRequest),
 		in:              make(chan *internalResponse),
 		responses:       make(chan *internalResponse),
+		outboundFlushed: make(chan bool),
 	}
 	return c
 }
@@ -115,13 +119,17 @@ func (c *Client) Recv() (*pbzk.ZookeeperResponse, error) {
 // more messages. It will also close the channel we use for sending outgoing messages
 // so we can properly clean up the goroutine that reads from it.
 func (c *Client) Close() error {
+	// Close the outgoing channel, so we will stop our long-running goroutines.
+	close(c.out)
+
+	// Wait to finish sending out all outgoing requests.
+	<-c.outboundFlushed
+
+	// Close the send side of the stream to clean up the gRPC connection with the server.
 	err := c.stream.CloseSend()
 	if err != nil {
 		return fmt.Errorf("error closing send: %w", err)
 	}
-
-	// Close the outgoing channel, so we will stop our long running goroutines.
-	close(c.out)
 	return nil
 }
 
@@ -129,6 +137,9 @@ func (c *Client) Close() error {
 // If we haven't received anything from the client to send, then we will send heartbeat messages
 // to keep the connection alive.
 func (c *Client) continuouslySendMessages() {
+	defer func() {
+		c.outboundFlushed <- true
+	}()
 	for {
 		select {
 		case m, ok := <-c.out:

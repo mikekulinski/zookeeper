@@ -25,7 +25,7 @@ func (s *Server) Message(stream pbzk.Zookeeper_MessageServer) error {
 	if err != nil {
 		return fmt.Errorf("error starting session: %w", err)
 	}
-	defer s.CloseSession(clientID)
+	defer s.CloseSession(ctx)
 
 	go s.continuouslyReceiveMessages(sess, stream)
 
@@ -145,7 +145,24 @@ func (s *Server) StartSession(clientID string) (*session.Session, error) {
 	return sess, nil
 }
 
-func (s *Server) CloseSession(clientID string) {
+func (s *Server) CloseSession(ctx context.Context) {
+	// Delete all ephemeral nodes associated with this session.
+	clientID, _ := ExtractClientIDHeader(ctx)
+	if sess, ok := s.sessions[clientID]; ok {
+		for path, node := range sess.EphemeralNodes {
+			req := &pbzk.DeleteRequest{
+				Path:    path,
+				Version: node.Version,
+			}
+			// Try deleting the node from the tree. This will also clean up the reference to that node in this session.
+			// This is ok because it is safe to delete an entry from a map while iterating through it in Go.
+			_, err := s.Delete(ctx, req)
+			if err != nil {
+				panic("unrecoverable: error deleting the ephemeral nodes from tree")
+			}
+		}
+	}
+	// Then actually delete the session.
 	delete(s.sessions, clientID)
 }
 

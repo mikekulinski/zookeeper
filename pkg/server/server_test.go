@@ -58,7 +58,7 @@ func TestServer_Create(t *testing.T) {
 			zk := NewServer()
 			// Pre-init the server with some nodes so we can also test cases with existing nodes.
 			zk.root.Children = map[string]*znode.ZNode{
-				existingNodeName: znode.NewZNode(existingNodeName, 0, test.parentNodeType, nil),
+				existingNodeName: znode.NewZNode(existingNodeName, test.parentNodeType, "", nil),
 			}
 
 			req := &pbzk.CreateRequest{
@@ -110,7 +110,7 @@ func TestServer_Create_Sequential(t *testing.T) {
 			zk := NewServer()
 			// Pre-init the server with some nodes so we can also test cases with existing nodes.
 			zk.root.NextSequentialNode = 5
-			existingNode := znode.NewZNode(existingNodeName, 0, test.parentNodeType, nil)
+			existingNode := znode.NewZNode(existingNodeName, test.parentNodeType, "", nil)
 			existingNode.NextSequentialNode = 5
 			zk.root.Children = map[string]*znode.ZNode{
 				existingNodeName: existingNode,
