@@ -3,7 +3,6 @@
 - Initial service implementation on 1 process
   - Fix race conditions
     - Make all the structures in our server thread safe
-    - Fix race condition when closing the client and flushing any outgoing requests.
 - Add an async version of the server
   - Maybe just have an async client that calls each method in a goroutine?
   - For FIFO client order we can use channels to implement this. And use blocking vs non-blocking channels for implementing sync / async

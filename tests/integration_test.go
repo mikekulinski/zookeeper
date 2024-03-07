@@ -18,8 +18,7 @@ import (
 )
 
 const (
-	serverAddress   = "localhost"
-	defaultWaitTime = 10 * time.Millisecond
+	serverAddress = "localhost"
 )
 
 type integrationTestSuite struct {
@@ -123,7 +122,7 @@ func (i *integrationTestSuite) TestCreateThenGetData() {
 		},
 	}
 
-	responses, err := sendAllRequests(client, requests, defaultWaitTime)
+	responses, err := sendAllRequests(client, requests, 0)
 	fmt.Println(responses)
 	i.Require().NoError(err)
 	for j := range expectedResponses {
@@ -211,7 +210,8 @@ func (i *integrationTestSuite) TestWatchEvents() {
 		},
 	}
 
-	responses, err := sendAllRequests(client, requests, defaultWaitTime)
+	// Wait a bit between requests to make sure we have enough time to send the watch event before closing the connection.
+	responses, err := sendAllRequests(client, requests, 10*time.Millisecond)
 	fmt.Println(responses)
 	i.Require().NoError(err)
 	for j := range expectedResponses {
@@ -325,7 +325,7 @@ func (i *integrationTestSuite) TestEphemeral_SessionDeletesNode() {
 	}
 
 	// Send all the requests and verify the responses.
-	responses, err := sendAllRequests(client, requests, defaultWaitTime)
+	responses, err := sendAllRequests(client, requests, 0)
 	fmt.Println(responses)
 	i.Require().NoError(err)
 	for j := range expectedResponses {
@@ -359,7 +359,7 @@ func (i *integrationTestSuite) TestEphemeral_SessionDeletesNode() {
 	}
 
 	// Send all the requests and get all the responses.
-	responses, err = sendAllRequests(client, requests, defaultWaitTime)
+	responses, err = sendAllRequests(client, requests, 0)
 	fmt.Println(responses)
 	i.Require().NoError(err)
 	for j := range expectedResponses {
@@ -432,7 +432,7 @@ func (i *integrationTestSuite) TestEphemeral_NodeManuallyDeleted() {
 	}
 
 	// Send all the requests and verify the responses.
-	responses, err := sendAllRequests(client, requests, defaultWaitTime)
+	responses, err := sendAllRequests(client, requests, 0)
 	fmt.Println(responses)
 	i.Require().NoError(err)
 	for j := range expectedResponses {
@@ -466,7 +466,7 @@ func (i *integrationTestSuite) TestEphemeral_NodeManuallyDeleted() {
 	}
 
 	// Send all the requests and get all the responses.
-	responses, err = sendAllRequests(client, requests, defaultWaitTime)
+	responses, err = sendAllRequests(client, requests, 0)
 	fmt.Println(responses)
 	i.Require().NoError(err)
 	for j := range expectedResponses {
