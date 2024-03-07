@@ -10,7 +10,7 @@ import (
 	"time"
 
 	zkc "github.com/mikekulinski/zookeeper/pkg/client"
-	zookeeper "github.com/mikekulinski/zookeeper/pkg/server"
+	zks "github.com/mikekulinski/zookeeper/pkg/server"
 	pbzk "github.com/mikekulinski/zookeeper/proto"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc"
@@ -23,7 +23,8 @@ const (
 
 type integrationTestSuite struct {
 	suite.Suite
-	Server *grpc.Server
+	Server   *grpc.Server
+	ZKServer *zks.Server
 }
 
 func (i *integrationTestSuite) SetupTest() {
@@ -33,7 +34,7 @@ func (i *integrationTestSuite) SetupTest() {
 	}
 
 	s := grpc.NewServer()
-	zk := zookeeper.NewServer()
+	zk := zks.NewServer()
 	pbzk.RegisterZookeeperServer(s, zk)
 
 	go func() {
@@ -43,6 +44,7 @@ func (i *integrationTestSuite) SetupTest() {
 	}()
 
 	i.Server = s
+	i.ZKServer = zk
 }
 
 func (i *integrationTestSuite) TearDownTest() {
@@ -217,7 +219,7 @@ func (i *integrationTestSuite) TestWatchEvents() {
 	}
 }
 
-func (i *integrationTestSuite) TestHeartbeat() {
+func (i *integrationTestSuite) TestHeartbeat_KeepsConnectionAlive() {
 	ctx := context.Background()
 
 	client, err := zkc.NewClient(ctx, serverAddress)

@@ -12,13 +12,28 @@ import (
 	pbzk "github.com/mikekulinski/zookeeper/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/metadata"
 )
 
 const (
 	ClientIDHeader = "X-Client-ID"
 	IdleTimeout    = 3000 * time.Millisecond
 )
+
+var (
+	ErrIdleTimeout = fmt.Errorf("timed out waiting for server to respond")
+)
+
+type internalResponse struct {
+	zkResponse *pbzk.ZookeeperResponse
+	err        error
+}
+
+func (i *internalResponse) GetZkResponse() *pbzk.ZookeeperResponse {
+	if i == nil {
+		return nil
+	}
+	return i.zkResponse
+}
 
 type Client struct {
 	pbzk.ZookeeperClient
@@ -30,9 +45,9 @@ type Client struct {
 	// Channel of outgoing requests.
 	out chan *pbzk.ZookeeperRequest
 	// Channel of the messages we get from the server.
-	in chan *pbzk.ZookeeperResponse
+	in chan *internalResponse
 	// Channel of the responses to return to the client.
-	responses chan *pbzk.ZookeeperResponse
+	responses chan *internalResponse
 }
 
 func NewClient(ctx context.Context, endpoint string) (*Client, error) {
@@ -59,8 +74,8 @@ func NewClient(ctx context.Context, endpoint string) (*Client, error) {
 		clientID:        clientID,
 		stream:          stream,
 		out:             make(chan *pbzk.ZookeeperRequest),
-		in:              make(chan *pbzk.ZookeeperResponse),
-		responses:       make(chan *pbzk.ZookeeperResponse),
+		in:              make(chan *internalResponse),
+		responses:       make(chan *internalResponse),
 	}
 	go c.continuouslySendMessages()
 	go c.continuouslyReceiveMessages()
@@ -68,20 +83,29 @@ func NewClient(ctx context.Context, endpoint string) (*Client, error) {
 	return c, nil
 }
 
+// Send will enqueue a new message to be sent to the server.
 func (c *Client) Send(request *pbzk.ZookeeperRequest) error {
 	c.out <- request
 	return nil
 }
 
+// Recv tries to receive the latest message from the channel of response we have
+// gotten from the server.
 func (c *Client) Recv() (*pbzk.ZookeeperResponse, error) {
 	resp, ok := <-c.responses
 	if !ok {
 		// If the channel is closed, then return io.EOF to indicate we're done.
 		return nil, io.EOF
 	}
-	return resp, nil
+	if resp.err != nil {
+		return nil, resp.err
+	}
+	return resp.zkResponse, nil
 }
 
+// Close will close the stream to tell the server that we're no longer going to be sending
+// more messages. It will also close the channel we use for sending outgoing messages
+// so we can properly clean up the goroutine that reads from it.
 func (c *Client) Close() error {
 	err := c.stream.CloseSend()
 	if err != nil {
@@ -93,33 +117,21 @@ func (c *Client) Close() error {
 	return nil
 }
 
-// clientIDStreamInterceptor returns a gRPC stream interceptor that adds a client ID to outgoing streams.
-func clientIDStreamInterceptor(clientID string) grpc.StreamClientInterceptor {
-	return func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
-		// Add client ID to outgoing metadata
-		md := metadata.Pairs(ClientIDHeader, clientID)
-		ctx = metadata.NewOutgoingContext(ctx, md)
-
-		// Call the streamer to establish a client stream
-		clientStream, err := streamer(ctx, desc, cc, method, opts...)
-		if err != nil {
-			return nil, err
-		}
-
-		return clientStream, nil
-	}
-}
-
+// continuouslySendMessages will continuously try to send messages from our client to the server.
+// If we haven't received anything from the client to send, then we will send heartbeat messages
+// to keep the connection alive.
 func (c *Client) continuouslySendMessages() {
 	for {
 		select {
 		case m, ok := <-c.out:
+			// If the channel is closed, then we have no more message we'll need to send.
 			if !ok {
 				return
 			}
 			// The client elected to send a message. Send that to the server.
 			err := c.stream.Send(m)
 			if err != nil {
+				// TODO: Find a way to get this back to the client.
 				log.Printf("Error sending message to the client stream: %+v\n", err)
 				return
 			}
@@ -142,6 +154,9 @@ func (c *Client) continuouslySendMessages() {
 	}
 }
 
+// continuouslyReturnMessagesToClient will try reading from our channel of incoming
+// responses from the server. We use this channel so that we can time out if we haven't
+// received a response in a long time.
 func (c *Client) continuouslyReturnMessagesToClient() {
 	defer close(c.responses)
 	for {
@@ -152,7 +167,7 @@ func (c *Client) continuouslyReturnMessagesToClient() {
 				return
 			}
 
-			switch resp.GetMessage().(type) {
+			switch resp.GetZkResponse().GetMessage().(type) {
 			case *pbzk.ZookeeperResponse_Heartbeat:
 				// Do nothing for heartbeat responses.
 				continue
@@ -163,12 +178,14 @@ func (c *Client) continuouslyReturnMessagesToClient() {
 		case <-time.After(IdleTimeout):
 			// We timed out waiting for the server to respond.
 			// TODO: Find a new server once the server is distributed.
-			log.Println("Timed out waiting for server to respond")
+			c.responses <- &internalResponse{err: ErrIdleTimeout}
 			return
 		}
 	}
 }
 
+// continuouslyReceiveMessages will try to receive the responses we get from the server
+// and will enqueue them to be sent back to the client.
 func (c *Client) continuouslyReceiveMessages() {
 	defer close(c.in)
 	for {
@@ -177,9 +194,11 @@ func (c *Client) continuouslyReceiveMessages() {
 			return
 		}
 		if err != nil {
-			log.Printf("Error receiving message from client stream: %+v\n", err)
+			c.in <- &internalResponse{
+				err: fmt.Errorf("error receiving message from client stream: %w", err),
+			}
 			return
 		}
-		c.in <- resp
+		c.in <- &internalResponse{zkResponse: resp}
 	}
 }

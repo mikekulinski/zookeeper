@@ -60,7 +60,6 @@ func main() {
 	waitc := make(chan struct{})
 	go func() {
 		for {
-			log.Println("Trying to read from client")
 			resp, err := client.Recv()
 			if err == io.EOF {
 				// read done.
