@@ -19,7 +19,7 @@ import (
 
 const (
 	serverAddress   = "localhost"
-	defaultWaitTime = 20 * time.Millisecond
+	defaultWaitTime = 10 * time.Millisecond
 )
 
 type integrationTestSuite struct {
@@ -276,6 +276,7 @@ func (i *integrationTestSuite) TestHeartbeat_KeepsConnectionAlive() {
 	}
 }
 
+// TestEphemeral_SessionDeletesNode verifies that we properly delete the ephemeral node once the session closes.
 func (i *integrationTestSuite) TestEphemeral_SessionDeletesNode() {
 	ctx := context.Background()
 
@@ -368,6 +369,8 @@ func (i *integrationTestSuite) TestEphemeral_SessionDeletesNode() {
 	}
 }
 
+// TestEphemeral_NodeManuallyDeleted verifies that closing a session for an already deleted ephemeral node doesn't cause
+// any problems.
 func (i *integrationTestSuite) TestEphemeral_NodeManuallyDeleted() {
 	ctx := context.Background()
 
