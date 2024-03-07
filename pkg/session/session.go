@@ -16,7 +16,8 @@ type Session struct {
 func NewSession() *Session {
 	return &Session{
 		// Messages is intentionally not buffered so we can check for timeouts.
-		Messages: make(chan *Event),
+		Messages:       make(chan *Event),
+		EphemeralNodes: make(map[string]*znode.ZNode),
 	}
 }
 

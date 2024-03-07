@@ -18,7 +18,8 @@ import (
 )
 
 const (
-	serverAddress = "localhost"
+	serverAddress   = "localhost"
+	defaultWaitTime = 20 * time.Millisecond
 )
 
 type integrationTestSuite struct {
@@ -122,7 +123,7 @@ func (i *integrationTestSuite) TestCreateThenGetData() {
 		},
 	}
 
-	responses, err := sendAllRequests(client, requests, 200*time.Millisecond)
+	responses, err := sendAllRequests(client, requests, defaultWaitTime)
 	fmt.Println(responses)
 	i.Require().NoError(err)
 	for j := range expectedResponses {
@@ -210,7 +211,7 @@ func (i *integrationTestSuite) TestWatchEvents() {
 		},
 	}
 
-	responses, err := sendAllRequests(client, requests, 200*time.Millisecond)
+	responses, err := sendAllRequests(client, requests, defaultWaitTime)
 	fmt.Println(responses)
 	i.Require().NoError(err)
 	for j := range expectedResponses {
@@ -266,6 +267,203 @@ func (i *integrationTestSuite) TestHeartbeat_KeepsConnectionAlive() {
 	// Wait longer than the idle timeout between requests to make sure we are properly
 	// using heartbeats to keep the connection alive.
 	responses, err := sendAllRequests(client, requests, 2*zkc.IdleTimeout)
+	fmt.Println(responses)
+	i.Require().NoError(err)
+	for j := range expectedResponses {
+		expected := expectedResponses[j]
+		actual := responses[j]
+		i.True(proto.Equal(expected, actual))
+	}
+}
+
+func (i *integrationTestSuite) TestEphemeral_SessionDeletesNode() {
+	ctx := context.Background()
+
+	// First client creates an ephemeral node, and then closes the session.
+	client := zkc.NewClient(serverAddress)
+	err := client.Connect(ctx)
+	i.Require().NoError(err)
+
+	requests := []*pbzk.ZookeeperRequest{
+		{
+			Message: &pbzk.ZookeeperRequest_Create{
+				Create: &pbzk.CreateRequest{
+					Path: "/zoo",
+					Data: []byte("Secrets hahahahaha!!"),
+					Flags: []pbzk.CreateRequest_Flag{
+						pbzk.CreateRequest_FLAG_EPHEMERAL,
+					},
+				},
+			},
+		},
+		{
+			Message: &pbzk.ZookeeperRequest_GetData{
+				GetData: &pbzk.GetDataRequest{
+					Path:  "/zoo",
+					Watch: false,
+				},
+			},
+		},
+	}
+	expectedResponses := []*pbzk.ZookeeperResponse{
+		{
+			Message: &pbzk.ZookeeperResponse_Create{
+				Create: &pbzk.CreateResponse{
+					ZNodeName: "/zoo",
+				},
+			},
+		},
+		{
+			Message: &pbzk.ZookeeperResponse_GetData{
+				GetData: &pbzk.GetDataResponse{
+					Data:    []byte("Secrets hahahahaha!!"),
+					Version: 0,
+				},
+			},
+		},
+	}
+
+	// Send all the requests and verify the responses.
+	responses, err := sendAllRequests(client, requests, defaultWaitTime)
+	fmt.Println(responses)
+	i.Require().NoError(err)
+	for j := range expectedResponses {
+		expected := expectedResponses[j]
+		actual := responses[j]
+		i.True(proto.Equal(expected, actual))
+	}
+
+	// Second client tries to fetch that node after the session was closed. The node should be gone.
+	client = zkc.NewClient(serverAddress)
+	err = client.Connect(ctx)
+	i.Require().NoError(err)
+
+	requests = []*pbzk.ZookeeperRequest{
+		{
+			Message: &pbzk.ZookeeperRequest_GetData{
+				GetData: &pbzk.GetDataRequest{
+					Path:  "/zoo",
+					Watch: false,
+				},
+			},
+		},
+	}
+	expectedResponses = []*pbzk.ZookeeperResponse{
+		{
+			// We expect an empty response since the node shouldn't exist.
+			Message: &pbzk.ZookeeperResponse_GetData{
+				GetData: &pbzk.GetDataResponse{},
+			},
+		},
+	}
+
+	// Send all the requests and get all the responses.
+	responses, err = sendAllRequests(client, requests, defaultWaitTime)
+	fmt.Println(responses)
+	i.Require().NoError(err)
+	for j := range expectedResponses {
+		expected := expectedResponses[j]
+		actual := responses[j]
+		i.True(proto.Equal(expected, actual))
+	}
+}
+
+func (i *integrationTestSuite) TestEphemeral_NodeManuallyDeleted() {
+	ctx := context.Background()
+
+	// First client creates an ephemeral node, and then closes the session.
+	client := zkc.NewClient(serverAddress)
+	err := client.Connect(ctx)
+	i.Require().NoError(err)
+
+	requests := []*pbzk.ZookeeperRequest{
+		{
+			Message: &pbzk.ZookeeperRequest_Create{
+				Create: &pbzk.CreateRequest{
+					Path: "/zoo",
+					Data: []byte("Secrets hahahahaha!!"),
+					Flags: []pbzk.CreateRequest_Flag{
+						pbzk.CreateRequest_FLAG_EPHEMERAL,
+					},
+				},
+			},
+		},
+		{
+			Message: &pbzk.ZookeeperRequest_GetData{
+				GetData: &pbzk.GetDataRequest{
+					Path:  "/zoo",
+					Watch: false,
+				},
+			},
+		},
+		{
+			Message: &pbzk.ZookeeperRequest_Delete{
+				Delete: &pbzk.DeleteRequest{
+					Path:    "/zoo",
+					Version: 0,
+				},
+			},
+		},
+	}
+	expectedResponses := []*pbzk.ZookeeperResponse{
+		{
+			Message: &pbzk.ZookeeperResponse_Create{
+				Create: &pbzk.CreateResponse{
+					ZNodeName: "/zoo",
+				},
+			},
+		},
+		{
+			Message: &pbzk.ZookeeperResponse_GetData{
+				GetData: &pbzk.GetDataResponse{
+					Data:    []byte("Secrets hahahahaha!!"),
+					Version: 0,
+				},
+			},
+		},
+		{
+			Message: &pbzk.ZookeeperResponse_Delete{
+				Delete: &pbzk.DeleteResponse{},
+			},
+		},
+	}
+
+	// Send all the requests and verify the responses.
+	responses, err := sendAllRequests(client, requests, defaultWaitTime)
+	fmt.Println(responses)
+	i.Require().NoError(err)
+	for j := range expectedResponses {
+		expected := expectedResponses[j]
+		actual := responses[j]
+		i.True(proto.Equal(expected, actual))
+	}
+
+	// Second client tries to fetch that node after the session was closed. The node should be gone.
+	client = zkc.NewClient(serverAddress)
+	err = client.Connect(ctx)
+	i.Require().NoError(err)
+
+	requests = []*pbzk.ZookeeperRequest{
+		{
+			Message: &pbzk.ZookeeperRequest_GetData{
+				GetData: &pbzk.GetDataRequest{
+					Path:  "/zoo",
+					Watch: false,
+				},
+			},
+		},
+	}
+	expectedResponses = []*pbzk.ZookeeperResponse{
+		{
+			// We expect an empty response since the node shouldn't exist.
+			Message: &pbzk.ZookeeperResponse_GetData{
+				GetData: &pbzk.GetDataResponse{},
+			},
+		},
+	}
+
+	// Send all the requests and get all the responses.
+	responses, err = sendAllRequests(client, requests, defaultWaitTime)
 	fmt.Println(responses)
 	i.Require().NoError(err)
 	for j := range expectedResponses {
