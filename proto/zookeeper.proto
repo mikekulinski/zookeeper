@@ -10,9 +10,14 @@ import "watch.proto";
 Messages for establishing and keeping connections with Zookeeper.
 */
 
-message Heartbeat {
+message HeartbeatRequest {
   // TODO: This is a placeholder value. Not sure if we even need anything.
-  uint64 sent_ts_ms = 1;
+  int64 sent_ts_ms = 1;
+}
+
+message HeartbeatResponse{
+  // TODO: This is a placeholder value. Not sure if we even need anything.
+  int64 received_ts_ms = 1;
 }
 
 /*
@@ -117,7 +122,7 @@ message ZookeeperRequest {
     // To prevent the session from timing out, the ZooKeeper client library sends a heartbeat after the session
     // has been idle for s/3 ms and switch to a new server if it has not heard from a server for 2s/3 ms,
     // where s is the session timeout in milliseconds.
-    Heartbeat heartbeat = 1;
+    HeartbeatRequest heartbeat = 1;
     // Create creates a ZNode with path name path, stores data in it, and returns the name of the new ZNode
     // Flags can also be passed to pick certain attributes you want the ZNode to have.
     CreateRequest create = 2;
@@ -150,6 +155,7 @@ message ZookeeperResponse {
     GetChildrenResponse get_children = 6;
     SyncResponse sync = 7;
     WatchEvent watch_event = 8;
+    HeartbeatResponse heartbeat = 9;
   }
 }
 
