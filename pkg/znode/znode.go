@@ -1,8 +1,6 @@
 package znode
 
 import (
-	"sync"
-
 	pbzk "github.com/mikekulinski/zookeeper/proto"
 )
 
@@ -20,8 +18,6 @@ type ZNode struct {
 	Children           map[string]*ZNode
 	NodeType           ZNodeType
 	NextSequentialNode int
-	// Cond is used to
-	Cond *sync.Cond
 
 	// Data is the data stored here by the client.
 	Data []byte
@@ -36,7 +32,6 @@ func NewZNode(name string, version int64, nodeType ZNodeType, data []byte) *ZNod
 		Children: map[string]*ZNode{},
 		NodeType: nodeType,
 		Data:     data,
-		Cond:     sync.NewCond(&sync.Mutex{}),
 	}
 }
 
