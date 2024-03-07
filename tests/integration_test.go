@@ -54,7 +54,8 @@ func (i *integrationTestSuite) TearDownTest() {
 func (i *integrationTestSuite) TestCreateThenGetData() {
 	ctx := context.Background()
 
-	client, err := zkc.NewClient(ctx, serverAddress)
+	client := zkc.NewClient(serverAddress)
+	err := client.Connect(ctx)
 	i.Require().NoError(err)
 
 	requests := []*pbzk.ZookeeperRequest{
@@ -135,7 +136,8 @@ func (i *integrationTestSuite) TestCreateThenGetData() {
 func (i *integrationTestSuite) TestWatchEvents() {
 	ctx := context.Background()
 
-	client, err := zkc.NewClient(ctx, serverAddress)
+	client := zkc.NewClient(serverAddress)
+	err := client.Connect(ctx)
 	i.Require().NoError(err)
 
 	requests := []*pbzk.ZookeeperRequest{
@@ -222,7 +224,8 @@ func (i *integrationTestSuite) TestWatchEvents() {
 func (i *integrationTestSuite) TestHeartbeat_KeepsConnectionAlive() {
 	ctx := context.Background()
 
-	client, err := zkc.NewClient(ctx, serverAddress)
+	client := zkc.NewClient(serverAddress)
+	err := client.Connect(ctx)
 	i.Require().NoError(err)
 
 	requests := []*pbzk.ZookeeperRequest{

@@ -50,7 +50,7 @@ type Client struct {
 	responses chan *internalResponse
 }
 
-func NewClient(ctx context.Context, endpoint string) (*Client, error) {
+func NewClient(endpoint string) *Client {
 	clientID := uuid.New().String()
 
 	// Set up a connection to the server.
@@ -63,24 +63,29 @@ func NewClient(ctx context.Context, endpoint string) (*Client, error) {
 	}
 	grpcClient := pbzk.NewZookeeperClient(conn)
 
-	// Initiate the stream with the Zookeeper server.
-	stream, err := grpcClient.Message(ctx)
-	if err != nil {
-		log.Fatal("error initializing the stream with the server")
-	}
-
 	c := &Client{
 		ZookeeperClient: grpcClient,
 		clientID:        clientID,
-		stream:          stream,
 		out:             make(chan *pbzk.ZookeeperRequest),
 		in:              make(chan *internalResponse),
 		responses:       make(chan *internalResponse),
 	}
+	return c
+}
+
+func (c *Client) Connect(ctx context.Context) error {
+	// Initiate the stream with the Zookeeper server.
+	stream, err := c.ZookeeperClient.Message(ctx)
+	if err != nil {
+		return fmt.Errorf("error initializing the stream with the server")
+	}
+
+	c.stream = stream
+
 	go c.continuouslySendMessages()
 	go c.continuouslyReceiveMessages()
 	go c.continuouslyReturnMessagesToClient()
-	return c, nil
+	return nil
 }
 
 // Send will enqueue a new message to be sent to the server.

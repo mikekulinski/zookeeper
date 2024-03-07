@@ -16,9 +16,11 @@ const (
 
 func main() {
 	ctx := context.Background()
-	client, err := zkc.NewClient(ctx, serverAddress)
+	client := zkc.NewClient(serverAddress)
+
+	err := client.Connect(ctx)
 	if err != nil {
-		log.Fatal("dialing:", err)
+		log.Fatal("error starting connection:", err)
 	}
 	defer client.Close()
 
