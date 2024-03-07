@@ -380,11 +380,20 @@ func (i *integrationTestSuite) TestEphemeral_NodeManuallyDeleted() {
 	i.Require().NoError(err)
 
 	requests := []*pbzk.ZookeeperRequest{
+		// Create a node that has a parent to verify we are handling full paths correctly.
 		{
 			Message: &pbzk.ZookeeperRequest_Create{
 				Create: &pbzk.CreateRequest{
 					Path: "/zoo",
 					Data: []byte("Secrets hahahahaha!!"),
+				},
+			},
+		},
+		{
+			Message: &pbzk.ZookeeperRequest_Create{
+				Create: &pbzk.CreateRequest{
+					Path: "/zoo/giraffe",
+					Data: []byte("It's a tall animal"),
 					Flags: []pbzk.CreateRequest_Flag{
 						pbzk.CreateRequest_FLAG_EPHEMERAL,
 					},
@@ -394,7 +403,7 @@ func (i *integrationTestSuite) TestEphemeral_NodeManuallyDeleted() {
 		{
 			Message: &pbzk.ZookeeperRequest_GetData{
 				GetData: &pbzk.GetDataRequest{
-					Path:  "/zoo",
+					Path:  "/zoo/giraffe",
 					Watch: false,
 				},
 			},
@@ -402,7 +411,7 @@ func (i *integrationTestSuite) TestEphemeral_NodeManuallyDeleted() {
 		{
 			Message: &pbzk.ZookeeperRequest_Delete{
 				Delete: &pbzk.DeleteRequest{
-					Path:    "/zoo",
+					Path:    "/zoo/giraffe",
 					Version: 0,
 				},
 			},
@@ -417,9 +426,16 @@ func (i *integrationTestSuite) TestEphemeral_NodeManuallyDeleted() {
 			},
 		},
 		{
+			Message: &pbzk.ZookeeperResponse_Create{
+				Create: &pbzk.CreateResponse{
+					ZNodeName: "/zoo/giraffe",
+				},
+			},
+		},
+		{
 			Message: &pbzk.ZookeeperResponse_GetData{
 				GetData: &pbzk.GetDataResponse{
-					Data:    []byte("Secrets hahahahaha!!"),
+					Data:    []byte("It's a tall animal"),
 					Version: 0,
 				},
 			},
@@ -450,7 +466,7 @@ func (i *integrationTestSuite) TestEphemeral_NodeManuallyDeleted() {
 		{
 			Message: &pbzk.ZookeeperRequest_GetData{
 				GetData: &pbzk.GetDataRequest{
-					Path:  "/zoo",
+					Path:  "/zoo/giraffe",
 					Watch: false,
 				},
 			},
