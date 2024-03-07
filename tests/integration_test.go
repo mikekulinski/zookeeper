@@ -23,8 +23,7 @@ const (
 
 type integrationTestSuite struct {
 	suite.Suite
-	Server   *grpc.Server
-	ZKServer *zks.Server
+	Server *grpc.Server
 }
 
 func (i *integrationTestSuite) SetupTest() {
@@ -44,13 +43,13 @@ func (i *integrationTestSuite) SetupTest() {
 	}()
 
 	i.Server = s
-	i.ZKServer = zk
 }
 
 func (i *integrationTestSuite) TearDownTest() {
 	i.Server.GracefulStop()
 }
 
+// TODO: Consider adding the uber goroutine leak checker here.
 func (i *integrationTestSuite) TestCreateThenGetData() {
 	ctx := context.Background()
 

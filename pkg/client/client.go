@@ -28,6 +28,8 @@ type internalResponse struct {
 	err        error
 }
 
+// GetZkResponse returns the zookeeper response. We take advantage of nil pointer receivers
+// so we can chain these getters together in a way that is safe from panics.
 func (i *internalResponse) GetZkResponse() *pbzk.ZookeeperResponse {
 	if i == nil {
 		return nil
@@ -41,7 +43,6 @@ type Client struct {
 	clientID string
 	stream   pbzk.Zookeeper_MessageClient
 
-	// Channels that manage the incoming and outgoing requests.
 	// Channel of outgoing requests.
 	out chan *pbzk.ZookeeperRequest
 	// Channel of the messages we get from the server.
@@ -73,6 +74,7 @@ func NewClient(endpoint string) *Client {
 	return c
 }
 
+// Connect actually establishes a live connection with the Zookeeper server.
 func (c *Client) Connect(ctx context.Context) error {
 	// Initiate the stream with the Zookeeper server.
 	stream, err := c.ZookeeperClient.Message(ctx)
@@ -80,6 +82,7 @@ func (c *Client) Connect(ctx context.Context) error {
 		return fmt.Errorf("error initializing the stream with the server")
 	}
 
+	// TODO: Find a way to prevent this from being called twice.
 	c.stream = stream
 
 	go c.continuouslySendMessages()
