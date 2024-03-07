@@ -2,6 +2,7 @@
 
 - Initial service implementation on 1 process
   - Implement ephemeral ZNodes (can't have children)
+  - Make all the structures in our server thread safe
 - Add an async version of the server
   - Maybe just have an async client that calls each method in a goroutine?
   - For FIFO client order we can use channels to implement this. And use blocking vs non-blocking channels for implementing sync / async

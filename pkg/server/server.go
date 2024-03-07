@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// TODO: All these structures are not thread safe. We should add a mutex to control this on the server.
 type Server struct {
 	pbzk.UnimplementedZookeeperServer
 
@@ -26,7 +27,7 @@ type Server struct {
 
 func NewServer() *Server {
 	return &Server{
-		root:     znode.NewZNode("", -1, znode.ZNodeType_STANDARD, nil),
+		root:     znode.NewZNode("", znode.ZNodeType_STANDARD, "", nil),
 		sessions: map[string]*session.Session{},
 		watches:  map[string][]*znode.Watch{},
 	}
@@ -56,14 +57,18 @@ func (s *Server) Create(ctx context.Context, req *pbzk.CreateRequest) (*pbzk.Cre
 	if slices.Contains(req.GetFlags(), pbzk.CreateRequest_FLAG_SEQUENTIAL) {
 		newName = fmt.Sprintf("%s_%d", newName, parent.NextSequentialNode)
 	}
+	fullName := newFullName(newName, names[:len(names)-1])
+
 	nodeType := znode.ZNodeType_STANDARD
 	if slices.Contains(req.GetFlags(), pbzk.CreateRequest_FLAG_EPHEMERAL) {
 		nodeType = znode.ZNodeType_EPHEMERAL
 	}
+
+	clientID, _ := ExtractClientIDHeader(ctx)
 	newNode := znode.NewZNode(
 		newName,
-		0,
 		nodeType,
+		clientID,
 		req.GetData(),
 	)
 
@@ -74,7 +79,15 @@ func (s *Server) Create(ctx context.Context, req *pbzk.CreateRequest) (*pbzk.Cre
 	// Make sure to increment the counter so the next sequential node will have the next number.
 	parent.NextSequentialNode++
 
-	fullName := newFullName(newName, names[:len(names)-1])
+	// If this node is ephemeral, then tie it to this session.
+	if newNode.NodeType == znode.ZNodeType_EPHEMERAL {
+		sess, ok := s.sessions[clientID]
+		if !ok {
+			return nil, fmt.Errorf("session unexpectedly missing")
+		}
+		sess.EphemeralNodes[fullName] = newNode
+	}
+
 	s.triggerWatches(fullName, pbzk.WatchEvent_EVENT_TYPE_ZNODE_CREATED)
 	resp := &pbzk.CreateResponse{
 		ZNodeName: fullName,
@@ -116,7 +129,15 @@ func (s *Server) Delete(ctx context.Context, req *pbzk.DeleteRequest) (*pbzk.Del
 	if len(node.Children) > 0 {
 		return nil, fmt.Errorf("the node specified has children. Only leaf nodes can be deleted")
 	}
+	// Delete the actual node from the tree.
 	delete(parent.Children, nameToDelete)
+	// Clean up any references if this was ephemeral.
+	if node.NodeType == znode.ZNodeType_EPHEMERAL {
+		// If this session hasn't already been deleted, then clean up the reference to this node here.
+		if sess, ok := s.sessions[node.Creator]; ok {
+			delete(sess.EphemeralNodes, req.GetPath())
+		}
+	}
 	s.triggerWatches(req.GetPath(), pbzk.WatchEvent_EVENT_TYPE_ZNODE_DELETED)
 	return &pbzk.DeleteResponse{}, nil
 }

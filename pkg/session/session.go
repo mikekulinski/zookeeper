@@ -1,12 +1,16 @@
 package session
 
 import (
+	"github.com/mikekulinski/zookeeper/pkg/znode"
 	pbzk "github.com/mikekulinski/zookeeper/proto"
 )
 
+// TODO: Do we also need a mutex for each session?
 type Session struct {
 	// Messages is a channel of events that the server needs to process.
 	Messages chan *Event
+	// Ephemeral nodes that have been created by this server.
+	EphemeralNodes map[string]*znode.ZNode
 }
 
 func NewSession() *Session {

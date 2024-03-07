@@ -18,19 +18,22 @@ type ZNode struct {
 	Children           map[string]*ZNode
 	NodeType           ZNodeType
 	NextSequentialNode int
+	// Creator is the ClientID of who created this node. This is helpful when working with ephemeral nodes.
+	Creator string
 
 	// Data is the data stored here by the client.
 	Data []byte
 }
 
-func NewZNode(name string, version int64, nodeType ZNodeType, data []byte) *ZNode {
+func NewZNode(name string, nodeType ZNodeType, creator string, data []byte) *ZNode {
 	return &ZNode{
 		Name:    name,
-		Version: version,
+		Version: 0,
 		// Init the children to an empty map instead of nil to avoid panics when writing to
 		// a nil map.
 		Children: map[string]*ZNode{},
 		NodeType: nodeType,
+		Creator:  creator,
 		Data:     data,
 	}
 }
