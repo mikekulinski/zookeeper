@@ -41,5 +41,5 @@ func TestClient_IdleTimeout(t *testing.T) {
 	// We expect to timeout here.
 	resp, err := client.Recv()
 	assert.Nil(t, resp)
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, ErrIdleTimeout)
 }
