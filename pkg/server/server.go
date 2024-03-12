@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"sync"
 
 	"github.com/mikekulinski/zookeeper/pkg/session"
 	"github.com/mikekulinski/zookeeper/pkg/znode"
@@ -18,8 +17,6 @@ import (
 type Server struct {
 	pbzk.UnimplementedZookeeperServer
 
-	// TODO: Maybe read/write mutex?
-	mu *sync.Mutex
 	// TODO: Update the locks for the nodes to be per node instead of the entire tree. This will help with throughput.
 	root *znode.ZNode
 	// sessions is a map of ClientID to session for all the clients
@@ -31,7 +28,6 @@ type Server struct {
 
 func NewServer() *Server {
 	return &Server{
-		mu:       &sync.Mutex{},
 		root:     znode.NewZNode("", znode.ZNodeType_STANDARD, "", nil),
 		sessions: map[string]*session.Session{},
 		watches:  map[string][]*znode.Watch{},
@@ -48,9 +44,7 @@ func (s *Server) Create(ctx context.Context, req *pbzk.CreateRequest) (*pbzk.Cre
 	names := splitPathIntoNodeNames(req.GetPath())
 
 	// Search down the tree until we hit the parent where we'll be creating this new node.
-	s.mu.Lock()
 	parent := findZNode(s.root, names[:len(names)-1])
-	s.mu.Unlock()
 	if parent == nil {
 		return nil, fmt.Errorf("at least one of the anscestors of this node are missing")
 	}
