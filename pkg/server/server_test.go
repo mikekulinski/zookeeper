@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/mikekulinski/zookeeper/pkg/znode"
@@ -131,6 +132,43 @@ func TestServer_Create_Sequential(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestServer_Create_RegularThenSequential(t *testing.T) {
+	const existingNodeName = "existing"
+	ctx := context.Background()
+	zk := NewServer()
+	// Pre-init the server with some nodes so we can also test cases with existing nodes.
+	zk.root.NextSequentialNode = 5
+	existingNode := znode.NewZNode(existingNodeName, znode.ZNodeType_STANDARD, "", nil)
+	existingNode.NextSequentialNode = 5
+	zk.root.Children = map[string]*znode.ZNode{
+		existingNodeName: existingNode,
+	}
+
+	// Create a regular node. It shouldn't have the sequential suffix.
+	req := &pbzk.CreateRequest{
+		Path: "/" + existingNodeName + "/standard",
+	}
+	resp, err := zk.Create(ctx, req)
+	fmt.Println(resp.GetZNodeName())
+	assert.True(t, strings.HasSuffix(resp.GetZNodeName(), "standard"))
+	assert.NoError(t, err)
+	// NextSequentialNode shouldn't be incremented.
+	assert.Equal(t, 5, existingNode.NextSequentialNode)
+
+	// Create a sequential node. It should use 5 as the suffix. NextSequentialNode should only be incremented
+	// after creating another sequential node.
+	req = &pbzk.CreateRequest{
+		Path:  "/" + existingNodeName + "/sequential",
+		Flags: []pbzk.CreateRequest_Flag{pbzk.CreateRequest_FLAG_SEQUENTIAL},
+	}
+	resp, err = zk.Create(ctx, req)
+	fmt.Println(resp.GetZNodeName())
+	assert.True(t, strings.HasSuffix(resp.GetZNodeName(), "sequential_5"))
+	assert.NoError(t, err)
+	// NextSequentialNode should be incremented.
+	assert.Equal(t, 6, existingNode.NextSequentialNode)
 }
 
 func TestServer_Delete(t *testing.T) {

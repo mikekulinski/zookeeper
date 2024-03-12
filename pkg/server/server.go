@@ -17,6 +17,7 @@ import (
 type Server struct {
 	pbzk.UnimplementedZookeeperServer
 
+	// TODO: Update the locks for the nodes to be per node instead of the entire tree. This will help with throughput.
 	root *znode.ZNode
 	// sessions is a map of ClientID to session for all the clients
 	// that are currently connected to Zookeeper.
@@ -77,7 +78,9 @@ func (s *Server) Create(ctx context.Context, req *pbzk.CreateRequest) (*pbzk.Cre
 	}
 	parent.Children[newName] = newNode
 	// Make sure to increment the counter so the next sequential node will have the next number.
-	parent.NextSequentialNode++
+	if slices.Contains(req.GetFlags(), pbzk.CreateRequest_FLAG_SEQUENTIAL) {
+		parent.NextSequentialNode++
+	}
 
 	// If this node is ephemeral, then tie it to this session.
 	if newNode.NodeType == znode.ZNodeType_EPHEMERAL {
