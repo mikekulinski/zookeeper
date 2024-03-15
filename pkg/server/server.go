@@ -3,9 +3,11 @@ package server
 import (
 	"context"
 	"fmt"
+	"log"
 	"slices"
 	"strings"
 
+	"github.com/mikekulinski/zookeeper/pkg/persistence"
 	"github.com/mikekulinski/zookeeper/pkg/session"
 	"github.com/mikekulinski/zookeeper/pkg/znode"
 	pbzk "github.com/mikekulinski/zookeeper/proto"
@@ -18,7 +20,9 @@ type Server struct {
 	pbzk.UnimplementedZookeeperServer
 
 	// TODO: Update the locks for the nodes to be per node instead of the entire tree. This will help with throughput.
-	root *znode.ZNode
+	root       *znode.ZNode
+	logManager *persistence.LogManager
+
 	// sessions is a map of ClientID to session for all the clients
 	// that are currently connected to Zookeeper.
 	sessions map[string]*session.Session
@@ -27,10 +31,15 @@ type Server struct {
 }
 
 func NewServer() *Server {
+	logManager, err := persistence.NewLogManager("./logs")
+	if err != nil {
+		log.Fatal("Error setting up log manager")
+	}
 	return &Server{
-		root:     znode.NewZNode("", znode.ZNodeType_STANDARD, "", nil),
-		sessions: map[string]*session.Session{},
-		watches:  map[string][]*znode.Watch{},
+		root:       znode.NewZNode("", znode.ZNodeType_STANDARD, "", nil),
+		logManager: logManager,
+		sessions:   map[string]*session.Session{},
+		watches:    map[string][]*znode.Watch{},
 	}
 }
 
