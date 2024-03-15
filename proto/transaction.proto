@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package zookeeper;
+
+option go_package = "github.com/mikekulinski/zookeeper/proto/zookeeper";
+
+message CreateTxn {
+  string path = 1;
+  bytes data = 2;
+  bool ephemeral = 3;
+}
+
+message DeleteTxn {
+  string path = 1;
+}
+
+message SetDataTxn {
+  string path = 1;
+  bytes data = 2;
+  int64 version = 3;
+}
+
+message ErrorTxn {
+  string err = 1;
+}
+
+message Transaction {
+  string client_id = 1;
+  int64 zxid = 2;
+  int64 timestamp_ms = 3;
+
+  oneof txn {
+    CreateTxn create = 4;
+    DeleteTxn delete = 5;
+    SetDataTxn set_data = 6;
+    ErrorTxn error = 7;
+  }
+}
