@@ -3,6 +3,7 @@ package persistence
 import (
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 
 	pbzk "github.com/mikekulinski/zookeeper/proto"
@@ -25,10 +26,13 @@ type LogManager struct {
 	// of the fields in LogManager.
 	mu       *sync.Mutex
 	logPath  string
-	lastZxid int64
+	LastZxid int64
 }
 
 func NewLogManager(logPath string) (*LogManager, error) {
+	// Make sure to trim any trailing slashes if the provided path contains one.
+	logPath = strings.TrimSuffix(logPath, "/")
+
 	fileInfo, err := os.Stat(logPath)
 	if err != nil {
 		return nil, err
@@ -41,7 +45,7 @@ func NewLogManager(logPath string) (*LogManager, error) {
 	return &LogManager{
 		mu:       &sync.Mutex{},
 		logPath:  logPath,
-		lastZxid: 0,
+		LastZxid: 0,
 	}, nil
 }
 
@@ -51,12 +55,12 @@ func (l *LogManager) Append(txn *pbzk.Transaction) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	if txn.GetZxid() <= l.lastZxid {
+	if txn.GetZxid() <= l.LastZxid {
 		return fmt.Errorf("transaction has already been added to the log")
 	}
 
 	// Create a new log file for this transaction id.
-	fileName := fmt.Sprintf("%s%s_%d", l.logPath, LogFilePrefix, txn.GetZxid())
+	fileName := fmt.Sprintf("%s/%s_%d", l.logPath, LogFilePrefix, txn.GetZxid())
 	file, err := os.Create(fileName)
 	if err != nil {
 		return fmt.Errorf("error creating new file: %w", err)
@@ -75,6 +79,6 @@ func (l *LogManager) Append(txn *pbzk.Transaction) error {
 
 	// Update the last seen ZXID to be equal to the transaction we just wrote.
 	// Do this after successfully writing the transaction to a file.
-	l.lastZxid = txn.GetZxid()
+	l.LastZxid = txn.GetZxid()
 	return nil
 }

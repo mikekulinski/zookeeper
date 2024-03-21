@@ -57,6 +57,7 @@ func (s *Server) Message(stream pbzk.Zookeeper_MessageServer) error {
 	}
 }
 
+// TODO: Make sure to append to log for successful writes and errors.
 func (s *Server) handleClientRequest(ctx context.Context, req *pbzk.ZookeeperRequest) (*pbzk.ZookeeperResponse, error) {
 	mainResponse := &pbzk.ZookeeperResponse{}
 	var err error

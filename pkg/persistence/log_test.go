@@ -7,6 +7,6 @@ import (
 )
 
 func TestLogManager_Append(t *testing.T) {
-	_, err := NewLogManager("/Users/mkulinski/go/")
+	_, err := NewLogManager("/Users/mkulinski/src/zookeeper/logs")
 	assert.NoError(t, err)
 }

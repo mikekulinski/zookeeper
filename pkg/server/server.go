@@ -16,6 +16,8 @@ import (
 )
 
 // TODO: All these structures are not thread safe. We should add a mutex to control this on the server.
+// TODO: Restructure the server to process transactions instead of client requests. That way we can
+// simply call these functions on recovery with the transactions from the log.
 type Server struct {
 	pbzk.UnimplementedZookeeperServer
 
