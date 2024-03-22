@@ -8,6 +8,7 @@ message CreateTxn {
   string path = 1;
   bytes data = 2;
   bool ephemeral = 3;
+  bool sequential = 4;
 }
 
 message DeleteTxn {
