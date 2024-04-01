@@ -20,9 +20,7 @@ import (
 type Server struct {
 	pbzk.UnimplementedZookeeperServer
 
-	// TODO: Update the locks for the nodes to be per node instead of the entire tree. This will help with throughput.
-	root *znode.ZNode
-	db   *znode.DB
+	db *znode.DB
 
 	// sessions is a map of ClientID to session for all the clients
 	// that are currently connected to Zookeeper.
@@ -33,7 +31,6 @@ type Server struct {
 
 func NewServer() *Server {
 	return &Server{
-		root:     znode.NewZNode("", znode.ZNodeType_STANDARD, "", nil),
 		db:       znode.NewDB(),
 		sessions: map[string]*session.Session{},
 		watches:  map[string][]*znode.Watch{},
@@ -212,17 +209,32 @@ func (s *Server) SetData(ctx context.Context, req *pbzk.SetDataRequest) (*pbzk.S
 	if err != nil {
 		return nil, err
 	}
-	names := splitPathIntoNodeNames(req.GetPath())
 
-	node := findZNode(s.root, names)
+	node := s.db.Get(req.GetPath())
 	if node == nil {
 		return nil, fmt.Errorf("node does not exist")
 	}
 	if !isValidVersion(req.GetVersion(), node.Version) {
 		return nil, fmt.Errorf("invalid version: expected [%d], actual [%d]", req.GetVersion(), node.Version)
 	}
-	node.Data = req.GetData()
-	node.Version++
+
+	clientID, _ := ExtractClientIDHeader(ctx)
+	txn := &pbzk.Transaction{
+		ClientId:    clientID,
+		Zxid:        0, // TODO
+		TimestampMs: time.Now().UnixMilli(),
+		Txn: &pbzk.Transaction_SetData{
+			SetData: &pbzk.SetDataTxn{
+				Path: req.GetPath(),
+				Data: req.GetData(),
+			},
+		},
+	}
+	err = s.db.SetData(txn)
+	if err != nil {
+		return nil, err
+	}
+
 	s.triggerWatches(req.GetPath(), pbzk.WatchEvent_EVENT_TYPE_ZNODE_DATA_CHANGED)
 	return &pbzk.SetDataResponse{}, nil
 }

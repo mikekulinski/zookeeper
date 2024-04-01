@@ -18,7 +18,6 @@ message DeleteTxn {
 message SetDataTxn {
   string path = 1;
   bytes data = 2;
-  int64 version = 3;
 }
 
 message ErrorTxn {

@@ -52,6 +52,10 @@ func splitPathIntoNodeNames(path string) []string {
 }
 
 func (d *DB) Create(txn *pbzk.Transaction) (*ZNode, error) {
+	if txn.GetCreate() == nil {
+		return nil, fmt.Errorf("not a create txn")
+	}
+
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -105,6 +109,10 @@ func newFullName(nodeName string, ancestorsNames []string) string {
 }
 
 func (d *DB) Delete(txn *pbzk.Transaction) error {
+	if txn.GetDelete() == nil {
+		return fmt.Errorf("not a delete txn")
+	}
+
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -119,5 +127,25 @@ func (d *DB) Delete(txn *pbzk.Transaction) error {
 	nameToDelete := names[len(names)-1]
 	// Delete the actual node from the tree.
 	delete(parent.Children, nameToDelete)
+	return nil
+}
+
+func (d *DB) SetData(txn *pbzk.Transaction) error {
+	if txn.GetSetData() == nil {
+		return fmt.Errorf("not a setData txn")
+	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	names := splitPathIntoNodeNames(txn.GetSetData().GetPath())
+
+	// Find the node we're updating.
+	node := findZNode(d.root, names)
+	if node == nil {
+		return fmt.Errorf("node not found")
+	}
+	node.Data = txn.GetSetData().GetData()
+	node.Version++
 	return nil
 }
