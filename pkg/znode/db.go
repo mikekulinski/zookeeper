@@ -1,3 +1,4 @@
+//go:generate mockgen -destination mocks/db.go . ZKDB
 package znode
 
 import (
@@ -7,6 +8,13 @@ import (
 
 	pbzk "github.com/mikekulinski/zookeeper/proto"
 )
+
+type ZKDB interface {
+	Get(path string) *ZNode
+	Create(txn *pbzk.Transaction) (*ZNode, error)
+	Delete(txn *pbzk.Transaction) error
+	SetData(txn *pbzk.Transaction) error
+}
 
 // DB is the source of truth for all the data stored in the Zookeeper server. It also controls the
 // locking mechanism, so it can be abstracted away from the caller.

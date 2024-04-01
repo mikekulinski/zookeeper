@@ -20,7 +20,7 @@ import (
 type Server struct {
 	pbzk.UnimplementedZookeeperServer
 
-	db *znode.DB
+	db znode.ZKDB
 
 	// sessions is a map of ClientID to session for all the clients
 	// that are currently connected to Zookeeper.
@@ -78,14 +78,6 @@ func (s *Server) Create(ctx context.Context, req *pbzk.CreateRequest) (*pbzk.Cre
 		ZNodeName: newNode.Name,
 	}
 	return resp, nil
-}
-
-func newFullName(nodeName string, ancestorsNames []string) string {
-	nodePath := "/" + nodeName
-	if len(ancestorsNames) > 0 {
-		return "/" + strings.Join(ancestorsNames, "/") + nodePath
-	}
-	return nodePath
 }
 
 // Delete deletes the ZNode at the given path if that ZNode is at the expected version.
@@ -281,25 +273,6 @@ func (s *Server) GetChildren(ctx context.Context, req *pbzk.GetChildrenRequest) 
 // that the client is connected to. The path is currently ignored. (Using path is not discussed in the white paper)
 func (s *Server) Sync(_ context.Context, _ *pbzk.SyncRequest) (*pbzk.SyncResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Sync not implemented")
-}
-
-func splitPathIntoNodeNames(path string) []string {
-	// Since we have a leading /, then we expect the first name to be empty.
-	return strings.Split(path, "/")[1:]
-}
-
-// findZNode will search down to the tree and return the node specified by the names.
-// If the node could not be found, then we will return nil.
-func findZNode(start *znode.ZNode, names []string) *znode.ZNode {
-	node := start
-	for _, name := range names {
-		z, ok := node.Children[name]
-		if !ok {
-			return nil
-		}
-		node = z
-	}
-	return node
 }
 
 // triggerWatches will notify all clients that are watching for events for that node.
