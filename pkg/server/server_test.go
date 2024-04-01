@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TODO: Move some of these unit tests to the DB.
 func TestServer_Create(t *testing.T) {
 	const existingNodeName = "existing"
 
@@ -57,6 +58,7 @@ func TestServer_Create(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			ctx := context.Background()
 			zk := NewServer()
+			// TODO: Update this so that we use the full name in the ZNode.
 			// Pre-init the server with some nodes so we can also test cases with existing nodes.
 			zk.root.Children = map[string]*znode.ZNode{
 				existingNodeName: znode.NewZNode(existingNodeName, test.parentNodeType, "", nil),
@@ -249,6 +251,7 @@ func TestServer_Delete(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
+			fmt.Println(zk.root)
 			// If we successfully deleted the leaf node, then verify we don't see it in the trie.
 			if test.deleteSucceeded {
 				assert.Empty(t, zk.root.Children[rootChildName].Children)

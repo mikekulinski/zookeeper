@@ -11,6 +11,7 @@ import (
 // DB is the source of truth for all the data stored in the Zookeeper server. It also controls the
 // locking mechanism, so it can be abstracted away from the caller.
 type DB struct {
+	// TODO: Consider using a map to each node.
 	root *ZNode
 	mu   *sync.RWMutex
 }
@@ -101,4 +102,22 @@ func newFullName(nodeName string, ancestorsNames []string) string {
 		return "/" + strings.Join(ancestorsNames, "/") + nodePath
 	}
 	return nodePath
+}
+
+func (d *DB) Delete(txn *pbzk.Transaction) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	names := splitPathIntoNodeNames(txn.GetDelete().GetPath())
+
+	// Search down the tree until we hit the parent where we'll be creating this new node.
+	parent := findZNode(d.root, names[:len(names)-1])
+	if parent == nil {
+		return fmt.Errorf("at least one of the anscestors of this node are missing")
+	}
+
+	nameToDelete := names[len(names)-1]
+	// Delete the actual node from the tree.
+	delete(parent.Children, nameToDelete)
+	return nil
 }
