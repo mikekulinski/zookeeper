@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/mikekulinski/zookeeper/pkg/session"
+	"github.com/mikekulinski/zookeeper/pkg/utils"
 	"github.com/mikekulinski/zookeeper/pkg/znode"
 	pbzk "github.com/mikekulinski/zookeeper/proto"
 	"google.golang.org/grpc/codes"
@@ -45,7 +46,7 @@ func (s *Server) Create(ctx context.Context, req *pbzk.CreateRequest) (*pbzk.Cre
 		return nil, err
 	}
 
-	clientID, _ := ExtractClientIDHeader(ctx)
+	clientID, _ := utils.ExtractClientIDHeader(ctx)
 	txn := &pbzk.Transaction{
 		ClientId:    clientID,
 		Zxid:        0, // TODO
@@ -104,7 +105,7 @@ func (s *Server) Delete(ctx context.Context, req *pbzk.DeleteRequest) (*pbzk.Del
 	}
 
 	// Actually delete from the DB.
-	clientID, _ := ExtractClientIDHeader(ctx)
+	clientID, _ := utils.ExtractClientIDHeader(ctx)
 	txn := &pbzk.Transaction{
 		ClientId:    clientID,
 		Zxid:        0, // TODO
@@ -143,7 +144,7 @@ func (s *Server) Exists(ctx context.Context, req *pbzk.ExistsRequest) (*pbzk.Exi
 
 	// If the client wants to watch for changes on this node, then add it to our map of watches.
 	if req.GetWatch() {
-		clientID, _ := ExtractClientIDHeader(ctx)
+		clientID, _ := utils.ExtractClientIDHeader(ctx)
 		w := &znode.Watch{
 			ClientID: clientID,
 			Path:     req.GetPath(),
@@ -177,7 +178,7 @@ func (s *Server) GetData(ctx context.Context, req *pbzk.GetDataRequest) (*pbzk.G
 
 	// If the client wants to watch for changes on this node, then add it to our map of watches.
 	if req.GetWatch() {
-		clientID, _ := ExtractClientIDHeader(ctx)
+		clientID, _ := utils.ExtractClientIDHeader(ctx)
 		w := &znode.Watch{
 			ClientID: clientID,
 			Path:     req.GetPath(),
@@ -210,7 +211,7 @@ func (s *Server) SetData(ctx context.Context, req *pbzk.SetDataRequest) (*pbzk.S
 		return nil, fmt.Errorf("invalid version: expected [%d], actual [%d]", req.GetVersion(), node.Version)
 	}
 
-	clientID, _ := ExtractClientIDHeader(ctx)
+	clientID, _ := utils.ExtractClientIDHeader(ctx)
 	txn := &pbzk.Transaction{
 		ClientId:    clientID,
 		Zxid:        0, // TODO
@@ -251,7 +252,7 @@ func (s *Server) GetChildren(ctx context.Context, req *pbzk.GetChildrenRequest) 
 
 	// If the client wants to watch for changes on this node, then add it to our map of watches.
 	if req.GetWatch() {
-		clientID, _ := ExtractClientIDHeader(ctx)
+		clientID, _ := utils.ExtractClientIDHeader(ctx)
 		w := &znode.Watch{
 			ClientID: clientID,
 			Path:     req.GetPath(),
