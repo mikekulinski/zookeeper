@@ -10,7 +10,7 @@ import (
 // clientIDStreamInterceptor returns a gRPC stream interceptor that adds a client ID to outgoing streams.
 func clientIDStreamInterceptor(clientID string) grpc.StreamClientInterceptor {
 	return func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
-		ctx = utils.SetClientIDHeader(ctx, clientID)
+		ctx = utils.SetOutgoingClientIDHeader(ctx, clientID)
 
 		// Call the streamer to establish a client stream
 		clientStream, err := streamer(ctx, desc, cc, method, opts...)

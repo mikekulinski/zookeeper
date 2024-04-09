@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/google/uuid"
+	"github.com/mikekulinski/zookeeper/pkg/session"
+	"github.com/mikekulinski/zookeeper/pkg/utils"
 	"github.com/mikekulinski/zookeeper/pkg/znode"
 	mock_db "github.com/mikekulinski/zookeeper/pkg/znode/mocks"
 	pbzk "github.com/mikekulinski/zookeeper/proto"
@@ -26,70 +29,123 @@ func (s *serverTestSuite) SetupTest() {
 	s.ZK.db = s.MockDB
 }
 
-//// TODO: Move some of these unit tests to the DB.
-//func (s *serverTestSuite) TestServer_Create() {
-//	const existingNodeName = "existing"
-//
-//	tests := []struct {
-//		name           string
-//		path           string
-//		parentNodeType znode.ZNodeType
-//		errorExpected  bool
-//	}{
-//		{
-//			name:          "invalid path",
-//			path:          "invalid",
-//			errorExpected: true,
-//		},
-//		{
-//			name:          "parent node missing",
-//			path:          "/x/y/z",
-//			errorExpected: true,
-//		},
-//		{
-//			name:          "node already exists",
-//			path:          fmt.Sprintf("/%s", existingNodeName),
-//			errorExpected: true,
-//		},
-//		{
-//			name:          "valid create, root",
-//			path:          "/xyz",
-//			errorExpected: false,
-//		},
-//		{
-//			name:          "valid create, child of existing node",
-//			path:          fmt.Sprintf("/%s/new", existingNodeName),
-//			errorExpected: false,
-//		},
-//		{
-//			name:           "parent node is ephemeral",
-//			path:           fmt.Sprintf("/%s/new", existingNodeName),
-//			parentNodeType: znode.ZNodeType_EPHEMERAL,
-//			errorExpected:  true,
-//		},
-//	}
-//	for _, test := range tests {
-//		s.Run(test.name, func() {
-//			ctx := context.Background()
-//			zk := NewServer()
-//			// TODO: Update this so that we use the full name in the ZNode.
-//			// Pre-init the server with some nodes so we can also test cases with existing nodes.
-//			zk.root.Children = map[string]*znode.ZNode{
-//				existingNodeName: znode.NewZNode(existingNodeName, test.parentNodeType, "", nil),
-//			}
-//
-//			req := &pbzk.CreateRequest{
-//				Path: test.path,
-//			}
-//			_, err := zk.Create(ctx, req)
-//			if test.errorExpected {
-//				s.Assert().Error(err)
-//			} else {
-//				s.Assert().NoError(err)
-//			}
-//		})
-//	}
-//}
+// TestServer_Create_Standard verifies that we handle create edge cases properly for normal nodes.
+func (s *serverTestSuite) TestServer_Create_Standard() {
+	var clientID = uuid.New().String()
+	tests := []struct {
+		name          string
+		path          string
+		testFunc      func()
+		errorExpected bool
+	}{
+		{
+			name:          "invalid path",
+			path:          "invalid",
+			testFunc:      func() {},
+			errorExpected: true,
+		},
+		{
+			name: "error with create",
+			path: "/x/y/z",
+			testFunc: func() {
+				s.MockDB.EXPECT().Create(gomock.Any()).Return(nil, fmt.Errorf("error with create"))
+			},
+			errorExpected: true,
+		},
+		{
+			name: "valid create, standard node",
+			path: "/xyz",
+			testFunc: func() {
+				s.MockDB.EXPECT().Create(gomock.Any()).Return(
+					znode.NewZNode(
+						"/xyz",
+						znode.ZNodeType_STANDARD,
+						clientID,
+						[]byte("data"),
+					),
+					nil,
+				)
+			},
+			errorExpected: false,
+		},
+	}
+	for _, test := range tests {
+		s.Run(test.name, func() {
+			ctx := context.Background()
+			ctx = utils.SetIncomingClientIDHeader(ctx, clientID)
+
+			// Make sure to run the function for each test that sets up the server state.
+			test.testFunc()
+
+			req := &pbzk.CreateRequest{
+				Path: test.path,
+			}
+			_, err := s.ZK.Create(ctx, req)
+			if test.errorExpected {
+				s.Assert().Error(err)
+			} else {
+				s.Assert().NoError(err)
+			}
+		})
+	}
+}
+
+// TestServer_Create_Ephemeral verifies that we handle the logic around sessions and ephemeral nodes properly.
+func (s *serverTestSuite) TestServer_Create_Ephemeral() {
+	var clientID = uuid.New().String()
+	newNode := znode.NewZNode(
+		"/xyz",
+		znode.ZNodeType_EPHEMERAL,
+		clientID,
+		[]byte("data"),
+	)
+	tests := []struct {
+		name          string
+		path          string
+		testFunc      func()
+		errorExpected bool
+	}{
+		{
+			name: "no session for ephemeral",
+			path: "/xyz",
+			testFunc: func() {
+				// Make sure to remove the session if one exists.
+				delete(s.ZK.sessions, clientID)
+				s.MockDB.EXPECT().Create(gomock.Any()).Return(newNode, nil)
+			},
+			errorExpected: true,
+		},
+		{
+			name: "valid create, ephemeral node",
+			path: "/xyz",
+			testFunc: func() {
+				// Make sure to create a session since it's required to be valid.
+				s.ZK.sessions[clientID] = session.NewSession()
+				s.MockDB.EXPECT().Create(gomock.Any()).Return(newNode, nil)
+			},
+			errorExpected: false,
+		},
+	}
+	for _, test := range tests {
+		s.Run(test.name, func() {
+			ctx := context.Background()
+			ctx = utils.SetIncomingClientIDHeader(ctx, clientID)
+
+			// Make sure to run the function for each test that sets up the server state.
+			test.testFunc()
+
+			req := &pbzk.CreateRequest{
+				Path: test.path,
+			}
+			_, err := s.ZK.Create(ctx, req)
+			if test.errorExpected {
+				s.Assert().Error(err)
+			} else {
+				s.Assert().NoError(err)
+			}
+		})
+	}
+}
 
 //	func (s *serverTestSuite) TestServer_Create_Sequential() {
 //		const existingNodeName = "existing_5"

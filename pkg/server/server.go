@@ -65,10 +65,14 @@ func (s *Server) Create(ctx context.Context, req *pbzk.CreateRequest) (*pbzk.Cre
 		return nil, err
 	}
 
+	fmt.Println("New Node", newNode)
+
 	// If this node is ephemeral, then tie it to this session.
 	if newNode.NodeType == znode.ZNodeType_EPHEMERAL {
+		fmt.Println("ClientID: ", clientID)
 		sess, ok := s.sessions[clientID]
 		if !ok {
+			fmt.Println("returning an error here")
 			return nil, fmt.Errorf("session unexpectedly missing")
 		}
 		sess.EphemeralNodes[newNode.Name] = newNode

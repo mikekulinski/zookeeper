@@ -25,9 +25,16 @@ func ExtractClientIDHeader(ctx context.Context) (string, bool) {
 	return values[0], true
 }
 
-func SetClientIDHeader(ctx context.Context, clientID string) context.Context {
+func SetOutgoingClientIDHeader(ctx context.Context, clientID string) context.Context {
 	// Add client ID to outgoing metadata
 	md := metadata.Pairs(ClientIDHeader, clientID)
 	ctx = metadata.NewOutgoingContext(ctx, md)
+	return ctx
+}
+
+func SetIncomingClientIDHeader(ctx context.Context, clientID string) context.Context {
+	// Add client ID to outgoing metadata
+	md := metadata.Pairs(ClientIDHeader, clientID)
+	ctx = metadata.NewIncomingContext(ctx, md)
 	return ctx
 }
