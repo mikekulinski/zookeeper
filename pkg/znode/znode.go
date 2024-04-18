@@ -13,6 +13,7 @@ const (
 
 type ZNode struct {
 	// ZNode metadata.
+	// Name is the full name of the ZNode from the root of the tree.
 	Name               string
 	Version            int64
 	Children           map[string]*ZNode

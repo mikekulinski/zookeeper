@@ -15,8 +15,7 @@ import (
 )
 
 const (
-	ClientIDHeader = "X-Client-ID"
-	IdleTimeout    = 3000 * time.Millisecond
+	IdleTimeout = 3000 * time.Millisecond
 )
 
 var (

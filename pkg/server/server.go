@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/mikekulinski/zookeeper/pkg/session"
+	"github.com/mikekulinski/zookeeper/pkg/utils"
 	"github.com/mikekulinski/zookeeper/pkg/znode"
 	pbzk "github.com/mikekulinski/zookeeper/proto"
 	"google.golang.org/grpc/codes"
@@ -14,11 +16,13 @@ import (
 )
 
 // TODO: All these structures are not thread safe. We should add a mutex to control this on the server.
+// TODO: Restructure the server to process transactions instead of client requests. That way we can
+// simply call these functions on recovery with the transactions from the log.
 type Server struct {
 	pbzk.UnimplementedZookeeperServer
 
-	// TODO: Update the locks for the nodes to be per node instead of the entire tree. This will help with throughput.
-	root *znode.ZNode
+	db znode.ZKDB
+
 	// sessions is a map of ClientID to session for all the clients
 	// that are currently connected to Zookeeper.
 	sessions map[string]*session.Session
@@ -28,7 +32,7 @@ type Server struct {
 
 func NewServer() *Server {
 	return &Server{
-		root:     znode.NewZNode("", znode.ZNodeType_STANDARD, "", nil),
+		db:       znode.NewDB(),
 		sessions: map[string]*session.Session{},
 		watches:  map[string][]*znode.Watch{},
 	}
@@ -41,45 +45,24 @@ func (s *Server) Create(ctx context.Context, req *pbzk.CreateRequest) (*pbzk.Cre
 	if err != nil {
 		return nil, err
 	}
-	names := splitPathIntoNodeNames(req.GetPath())
 
-	// Search down the tree until we hit the parent where we'll be creating this new node.
-	parent := findZNode(s.root, names[:len(names)-1])
-	if parent == nil {
-		return nil, fmt.Errorf("at least one of the anscestors of this node are missing")
+	clientID, _ := utils.ExtractClientIDHeader(ctx)
+	txn := &pbzk.Transaction{
+		ClientId:    clientID,
+		Zxid:        0, // TODO
+		TimestampMs: time.Now().UnixMilli(),
+		Txn: &pbzk.Transaction_Create{
+			Create: &pbzk.CreateTxn{
+				Path:       req.GetPath(),
+				Data:       req.GetData(),
+				Ephemeral:  slices.Contains(req.GetFlags(), pbzk.CreateRequest_FLAG_EPHEMERAL),
+				Sequential: slices.Contains(req.GetFlags(), pbzk.CreateRequest_FLAG_SEQUENTIAL),
+			},
+		},
 	}
-	if parent.NodeType == znode.ZNodeType_EPHEMERAL {
-		return nil, fmt.Errorf("ephemeral nodes cannot have children")
-	}
-
-	// We are at the parent node of the one we are trying to create. Now let's
-	// try to create it.
-	newName := names[len(names)-1]
-	if slices.Contains(req.GetFlags(), pbzk.CreateRequest_FLAG_SEQUENTIAL) {
-		newName = fmt.Sprintf("%s_%d", newName, parent.NextSequentialNode)
-	}
-	fullName := newFullName(newName, names[:len(names)-1])
-
-	nodeType := znode.ZNodeType_STANDARD
-	if slices.Contains(req.GetFlags(), pbzk.CreateRequest_FLAG_EPHEMERAL) {
-		nodeType = znode.ZNodeType_EPHEMERAL
-	}
-
-	clientID, _ := ExtractClientIDHeader(ctx)
-	newNode := znode.NewZNode(
-		newName,
-		nodeType,
-		clientID,
-		req.GetData(),
-	)
-
-	if _, ok := parent.Children[newName]; ok {
-		return nil, fmt.Errorf("node [%s] already exists at path [%s]", newName, req.GetPath())
-	}
-	parent.Children[newName] = newNode
-	// Make sure to increment the counter so the next sequential node will have the next number.
-	if slices.Contains(req.GetFlags(), pbzk.CreateRequest_FLAG_SEQUENTIAL) {
-		parent.NextSequentialNode++
+	newNode, err := s.db.Create(txn)
+	if err != nil {
+		return nil, err
 	}
 
 	// If this node is ephemeral, then tie it to this session.
@@ -88,22 +71,14 @@ func (s *Server) Create(ctx context.Context, req *pbzk.CreateRequest) (*pbzk.Cre
 		if !ok {
 			return nil, fmt.Errorf("session unexpectedly missing")
 		}
-		sess.EphemeralNodes[fullName] = newNode
+		sess.EphemeralNodes[newNode.Name] = newNode
 	}
 
-	s.triggerWatches(fullName, pbzk.WatchEvent_EVENT_TYPE_ZNODE_CREATED)
+	s.triggerWatches(newNode.Name, pbzk.WatchEvent_EVENT_TYPE_ZNODE_CREATED)
 	resp := &pbzk.CreateResponse{
-		ZNodeName: fullName,
+		ZNodeName: newNode.Name,
 	}
 	return resp, nil
-}
-
-func newFullName(nodeName string, ancestorsNames []string) string {
-	nodePath := "/" + nodeName
-	if len(ancestorsNames) > 0 {
-		return "/" + strings.Join(ancestorsNames, "/") + nodePath
-	}
-	return nodePath
 }
 
 // Delete deletes the ZNode at the given path if that ZNode is at the expected version.
@@ -112,28 +87,40 @@ func (s *Server) Delete(ctx context.Context, req *pbzk.DeleteRequest) (*pbzk.Del
 	if err != nil {
 		return nil, err
 	}
-	names := splitPathIntoNodeNames(req.GetPath())
 
-	// Search down the tree until we hit the parent where we'll be creating this new node.
-	parent := findZNode(s.root, names[:len(names)-1])
-	if parent == nil {
-		return nil, fmt.Errorf("at least one of the anscestors of this node are missing")
-	}
-
-	nameToDelete := names[len(names)-1]
-	node, ok := parent.Children[nameToDelete]
-	if !ok {
-		// If the node doesn't exist, then act like the operation succeeded.
+	// First, get the node and validate the request.
+	node := s.db.Get(req.GetPath())
+	if node == nil {
 		return &pbzk.DeleteResponse{}, nil
 	}
+
+	// Make sure the node has the right version when deleting.
 	if !isValidVersion(req.GetVersion(), node.Version) {
 		return nil, fmt.Errorf("invalid version: expected [%d], actual [%d]", req.GetVersion(), node.Version)
 	}
+
+	// Nodes with children are not able to be deleted.
 	if len(node.Children) > 0 {
 		return nil, fmt.Errorf("the node specified has children. Only leaf nodes can be deleted")
 	}
-	// Delete the actual node from the tree.
-	delete(parent.Children, nameToDelete)
+
+	// Actually delete from the DB.
+	clientID, _ := utils.ExtractClientIDHeader(ctx)
+	txn := &pbzk.Transaction{
+		ClientId:    clientID,
+		Zxid:        0, // TODO
+		TimestampMs: time.Now().UnixMilli(),
+		Txn: &pbzk.Transaction_Delete{
+			Delete: &pbzk.DeleteTxn{
+				Path: req.GetPath(),
+			},
+		},
+	}
+	err = s.db.Delete(txn)
+	if err != nil {
+		return nil, err
+	}
+
 	// Clean up any references if this was ephemeral.
 	if node.NodeType == znode.ZNodeType_EPHEMERAL {
 		// If this session hasn't already been deleted, then clean up the reference to this node here.
@@ -152,13 +139,12 @@ func (s *Server) Exists(ctx context.Context, req *pbzk.ExistsRequest) (*pbzk.Exi
 	if err != nil {
 		return nil, err
 	}
-	names := splitPathIntoNodeNames(req.GetPath())
 
-	node := findZNode(s.root, names)
+	node := s.db.Get(req.GetPath())
 
 	// If the client wants to watch for changes on this node, then add it to our map of watches.
 	if req.GetWatch() {
-		clientID, _ := ExtractClientIDHeader(ctx)
+		clientID, _ := utils.ExtractClientIDHeader(ctx)
 		w := &znode.Watch{
 			ClientID: clientID,
 			Path:     req.GetPath(),
@@ -184,16 +170,15 @@ func (s *Server) GetData(ctx context.Context, req *pbzk.GetDataRequest) (*pbzk.G
 	if err != nil {
 		return nil, err
 	}
-	names := splitPathIntoNodeNames(req.GetPath())
 
-	node := findZNode(s.root, names)
+	node := s.db.Get(req.GetPath())
 	if node == nil {
 		return &pbzk.GetDataResponse{}, nil
 	}
 
 	// If the client wants to watch for changes on this node, then add it to our map of watches.
 	if req.GetWatch() {
-		clientID, _ := ExtractClientIDHeader(ctx)
+		clientID, _ := utils.ExtractClientIDHeader(ctx)
 		w := &znode.Watch{
 			ClientID: clientID,
 			Path:     req.GetPath(),
@@ -217,17 +202,32 @@ func (s *Server) SetData(ctx context.Context, req *pbzk.SetDataRequest) (*pbzk.S
 	if err != nil {
 		return nil, err
 	}
-	names := splitPathIntoNodeNames(req.GetPath())
 
-	node := findZNode(s.root, names)
+	node := s.db.Get(req.GetPath())
 	if node == nil {
 		return nil, fmt.Errorf("node does not exist")
 	}
 	if !isValidVersion(req.GetVersion(), node.Version) {
 		return nil, fmt.Errorf("invalid version: expected [%d], actual [%d]", req.GetVersion(), node.Version)
 	}
-	node.Data = req.GetData()
-	node.Version++
+
+	clientID, _ := utils.ExtractClientIDHeader(ctx)
+	txn := &pbzk.Transaction{
+		ClientId:    clientID,
+		Zxid:        0, // TODO
+		TimestampMs: time.Now().UnixMilli(),
+		Txn: &pbzk.Transaction_SetData{
+			SetData: &pbzk.SetDataTxn{
+				Path: req.GetPath(),
+				Data: req.GetData(),
+			},
+		},
+	}
+	err = s.db.SetData(txn)
+	if err != nil {
+		return nil, err
+	}
+
 	s.triggerWatches(req.GetPath(), pbzk.WatchEvent_EVENT_TYPE_ZNODE_DATA_CHANGED)
 	return &pbzk.SetDataResponse{}, nil
 }
@@ -238,9 +238,8 @@ func (s *Server) GetChildren(ctx context.Context, req *pbzk.GetChildrenRequest) 
 	if err != nil {
 		return nil, err
 	}
-	names := splitPathIntoNodeNames(req.GetPath())
 
-	node := findZNode(s.root, names)
+	node := s.db.Get(req.GetPath())
 	if node == nil {
 		return &pbzk.GetChildrenResponse{}, nil
 	}
@@ -253,7 +252,7 @@ func (s *Server) GetChildren(ctx context.Context, req *pbzk.GetChildrenRequest) 
 
 	// If the client wants to watch for changes on this node, then add it to our map of watches.
 	if req.GetWatch() {
-		clientID, _ := ExtractClientIDHeader(ctx)
+		clientID, _ := utils.ExtractClientIDHeader(ctx)
 		w := &znode.Watch{
 			ClientID: clientID,
 			Path:     req.GetPath(),
@@ -275,25 +274,6 @@ func (s *Server) GetChildren(ctx context.Context, req *pbzk.GetChildrenRequest) 
 // that the client is connected to. The path is currently ignored. (Using path is not discussed in the white paper)
 func (s *Server) Sync(_ context.Context, _ *pbzk.SyncRequest) (*pbzk.SyncResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Sync not implemented")
-}
-
-func splitPathIntoNodeNames(path string) []string {
-	// Since we have a leading /, then we expect the first name to be empty.
-	return strings.Split(path, "/")[1:]
-}
-
-// findZNode will search down to the tree and return the node specified by the names.
-// If the node could not be found, then we will return nil.
-func findZNode(start *znode.ZNode, names []string) *znode.ZNode {
-	node := start
-	for _, name := range names {
-		z, ok := node.Children[name]
-		if !ok {
-			return nil
-		}
-		node = z
-	}
-	return node
 }
 
 // triggerWatches will notify all clients that are watching for events for that node.

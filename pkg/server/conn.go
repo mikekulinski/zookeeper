@@ -9,13 +9,14 @@ import (
 	"time"
 
 	"github.com/mikekulinski/zookeeper/pkg/session"
+	"github.com/mikekulinski/zookeeper/pkg/utils"
 	pbzk "github.com/mikekulinski/zookeeper/proto"
 )
 
 func (s *Server) Message(stream pbzk.Zookeeper_MessageServer) error {
 	ctx := stream.Context()
 	// Extract the clientID from the message headers.
-	clientID, ok := ExtractClientIDHeader(ctx)
+	clientID, ok := utils.ExtractClientIDHeader(ctx)
 	if !ok {
 		return fmt.Errorf("missing ClientID in the headers")
 	}
@@ -57,6 +58,7 @@ func (s *Server) Message(stream pbzk.Zookeeper_MessageServer) error {
 	}
 }
 
+// TODO: Route each write request to the request processor that returns a transaction.
 func (s *Server) handleClientRequest(ctx context.Context, req *pbzk.ZookeeperRequest) (*pbzk.ZookeeperResponse, error) {
 	mainResponse := &pbzk.ZookeeperResponse{}
 	var err error
@@ -147,7 +149,7 @@ func (s *Server) StartSession(clientID string) (*session.Session, error) {
 
 func (s *Server) CloseSession(ctx context.Context) {
 	// Delete all ephemeral nodes associated with this session.
-	clientID, _ := ExtractClientIDHeader(ctx)
+	clientID, _ := utils.ExtractClientIDHeader(ctx)
 	if sess, ok := s.sessions[clientID]; ok {
 		for path, node := range sess.EphemeralNodes {
 			req := &pbzk.DeleteRequest{
